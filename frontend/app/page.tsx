@@ -13,7 +13,15 @@ import {
   Eye,
   EyeOff,
   LogOut,
-  Trash2
+  Trash2,
+  HelpCircle,
+  X,
+  BookOpen,
+  Search,
+  ShieldCheck,
+  Zap,
+  Building,
+  CheckCircle2
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -29,6 +37,10 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+
+  // --- ESTADOS DO MODAL DE AJUDA ---
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpActiveTab, setHelpActiveTab] = useState<"peticoes" | "atajur" | "datajud" | "seguranca">("peticoes");
 
   // --- ESTADOS DO DASHBOARD ---
   const [activeTab, setActiveTab] = useState<"atajur" | "peticao">("atajur");
@@ -54,6 +66,7 @@ export default function Home() {
 
   // JurisPrime (Petição)
   const [instrucaoPeticao, setInstrucaoPeticao] = useState("");
+  const [tribunalSelecionado, setTribunalSelecionado] = useState("tjms");
   const [arquivosPeticao, setArquivosPeticao] = useState<FileList | null>(null);
   const [peticaoGerada, setPeticaoGerada] = useState("");
   const [gerandoPeticao, setGerandoPeticao] = useState(false);
@@ -75,14 +88,12 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- FORMATAR TEMPO DE GRAVAÇÃO (MM:SS) ---
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // --- AÇÕES DE AUTENTICAÇÃO ---
   const handleGoogleLogin = async () => {
     setAuthError(null);
     try {
@@ -132,7 +143,6 @@ export default function Home() {
     setUser(null);
   };
 
-  // --- LÓGICA DE GRAVAÇÃO DO MICROFONE ---
   const handleStartRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -172,7 +182,6 @@ export default function Home() {
     }
   };
 
-  // --- EXCLUIR / RESETAR ÁUDIO OU ARQUIVO ---
   const handleClearAudio = () => {
     setAudioBlob(null);
     setAudioUrl(null);
@@ -181,7 +190,6 @@ export default function Home() {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  // --- SUBMISSÃO DO ATAJUR ---
   const handleProcessarAta = async () => {
     if (!participantes || !tituloReuniao) {
       alert("Por favor, preencha os participantes e o título/pauta.");
@@ -223,7 +231,6 @@ export default function Home() {
     }
   };
 
-  // --- DOWNLOAD DOCX ---
   const handleDownloadDocx = async (titulo: string, conteudo: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/exportar-docx`, {
@@ -248,7 +255,6 @@ export default function Home() {
     }
   };
 
-  // --- ENVIAR EMAIL ---
   const handleEnviarEmail = async () => {
     if (!emailDestino) {
       alert("Preencha o e-mail de destino.");
@@ -278,7 +284,6 @@ export default function Home() {
     }
   };
 
-  // --- GERAR PETIÇÃO COM STREAMING ---
   const handleGerarPeticao = async () => {
     if (!instrucaoPeticao) {
       alert("Insira os fatos ou instruções da petição.");
@@ -290,6 +295,7 @@ export default function Home() {
 
     const formData = new FormData();
     formData.append("instrucao_usuario", instrucaoPeticao);
+    formData.append("tribunal", tribunalSelecionado);
 
     if (arquivosPeticao) {
       Array.from(arquivosPeticao).forEach((file) => {
@@ -350,7 +356,6 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6">
         <div className="w-full max-w-[1100px] grid grid-cols-1 lg:grid-cols-[1.1fr_0.15fr_1.2fr] gap-6 items-center">
-          
           <div className="w-full max-w-[420px] mx-auto flex flex-col items-center text-center">
             <h1 className="text-[#0f172a] font-extrabold text-[30px] leading-[1.15] mt-2 mb-2 tracking-tight">
               Sua rotina jurídica<br />mais eficiente
@@ -491,9 +496,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
           </div>
-
         </div>
       </div>
     );
@@ -503,58 +506,252 @@ export default function Home() {
   // 2. DASHBOARD DE TRABALHO
   // =========================================================================
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* MODAL DE AJUDA & MANUAL OPERACIONAL */}
+      {showHelpModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[88vh]">
+            
+            {/* Header do Modal */}
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-600 rounded-lg text-white">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Central de Ajuda & Manual Operacional</h3>
+                  <p className="text-xs text-slate-300">Guia prático para extrair o máximo de precisão do JurisPrime & AtaJur</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Abas de Navegação da Ajuda */}
+            <div className="flex border-b border-slate-200 bg-slate-50 px-6 pt-3 space-x-4">
+              <button
+                onClick={() => setHelpActiveTab("peticoes")}
+                className={`pb-3 text-xs font-semibold flex items-center space-x-2 border-b-2 transition ${
+                  helpActiveTab === "peticoes"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Petições de 1º Grau</span>
+              </button>
+              <button
+                onClick={() => setHelpActiveTab("atajur")}
+                className={`pb-3 text-xs font-semibold flex items-center space-x-2 border-b-2 transition ${
+                  helpActiveTab === "atajur"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Mic className="w-4 h-4" />
+                <span>AtaJur (Atas de Áudio)</span>
+              </button>
+              <button
+                onClick={() => setHelpActiveTab("datajud")}
+                className={`pb-3 text-xs font-semibold flex items-center space-x-2 border-b-2 transition ${
+                  helpActiveTab === "datajud"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Building className="w-4 h-4" />
+                <span>Integração DataJud / CNJ</span>
+              </button>
+              <button
+                onClick={() => setHelpActiveTab("seguranca")}
+                className={`pb-3 text-xs font-semibold flex items-center space-x-2 border-b-2 transition ${
+                  helpActiveTab === "seguranca"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Travas Anti-Alucinação</span>
+              </button>
+            </div>
+
+            {/* Conteúdo da Ajuda */}
+            <div className="p-6 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
+              {helpActiveTab === "peticoes" && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <Scale className="w-5 h-5 text-blue-600" />
+                    Como gerar Petições Iniciais e Incidentais com Alta Densidade
+                  </h4>
+                  <p>
+                    O módulo **JurisPrime Petições** foi calibrado para redigir peças completas de 2.000 a 3.500 palavras com rigor forense, pedidos pormenorizados e requerimento de tutela provisória (Art. 300 e 311 do CPC).
+                  </p>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <p className="font-semibold text-slate-900">Passo a passo recomendado:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-600">
+                      <li><strong>Selecione o Tribunal</strong> de destino no menu dropdown para direcionar o estilo da corte.</li>
+                      <li><strong>Anexe contratos ou comprovantes em PDF</strong> (o Gemini analisará as cláusulas e valores diretamente).</li>
+                      <li><strong>Descreva os fatos essenciais</strong> e os pedidos desejados (ex: dano moral, repetição de indébito, inversão do ônus da prova).</li>
+                      <li>Clique em <strong>Redigir Petição Inicial</strong> e visualize o texto sendo redigido em tempo real (streaming).</li>
+                      <li>Exporte em <strong>.DOCX formatado</strong> com recuos e margens padrão da advocacia.</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+
+              {helpActiveTab === "atajur" && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <Mic className="w-5 h-5 text-blue-600" />
+                    Fluxo Executivo do AtaJur
+                  </h4>
+                  <p>
+                    O **AtaJur** sintetiza reuniões jurídicas complexas com clientes ou equipes internas, transformando áudios extensos em atas formais com matriz de prazos, pendências e responsabilidades claras.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                      <p className="font-semibold text-blue-900 mb-1">👤 Reunião com Cliente</p>
+                      <p className="text-xs text-blue-700">
+                        Estrutura os fatos narrados pelo cliente, documentos faltantes que ele precisa providenciar e prazos para a propositura da ação.
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl">
+                      <p className="font-semibold text-slate-900 mb-1">⚖️ Reunião Interna</p>
+                      <p className="text-xs text-slate-600">
+                        Foca na estratégia processual do escritório, distribuição de teses entre sócios/associados e prazos fatais de protocolo.
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    💡 <strong>Dica:</strong> Após gerar a ata, você pode dispará-la diretamente para o e-mail do cliente ou colega com o anexo .docx gerado.
+                  </p>
+                </div>
+              )}
+
+              {helpActiveTab === "datajud" && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <Building className="w-5 h-5 text-blue-600" />
+                    Varredura Direta no DataJud / CNJ
+                  </h4>
+                  <p>
+                    A plataforma integra a API Pública oficial do Conselho Nacional de Justiça (DataJud). Ao redigir réplicas, contestações ou incidentes, basta digitar ou colar o número do processo no formato CNJ (<code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600">0000000-00.0000.0.00.0000</code>).
+                  </p>
+                  <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-amber-900 text-xs space-y-1">
+                    <p className="font-semibold">O que o sistema busca automaticamente:</p>
+                    <p>• Órgão julgador e vara competente do tribunal selecionado;</p>
+                    <p>• Classe processual e códigos de assuntos catalogados pelo CNJ;</p>
+                    <p>• Resumo cronológico das últimas movimentações processuais.</p>
+                  </div>
+                </div>
+              )}
+
+              {helpActiveTab === "seguranca" && (
+                <div className="space-y-4">
+                  <h4 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-blue-600" />
+                    Travas Anti-Alucinação e Consulta ao Google Search
+                  </h4>
+                  <p>
+                    Para evitar a citação de precedentes fantasmas, números de REsp inexistentes ou súmulas revogadas, a infraestrutura opera com:
+                  </p>
+                  <ul className="space-y-2 text-slate-600">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Verificação em Tempo Real:</strong> A IA valida precedentes do STJ/STF via ferramenta de busca conectada antes de emitir a fundamentação.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Temperatura Zero (0.1):</strong> Reduz a criatividade solta da IA ao mínimo indispensável, garantindo rigor dogmático e terminologia processual exata.</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Footer do Modal */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition cursor-pointer"
+              >
+                Entendido, Fechar Guia
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER PRINCIPAL */}
+      <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-600 rounded-lg text-white">
-              <Scale className="w-6 h-6" />
+              <Scale className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">JurisPrime & AtaJur</h1>
-              <p className="text-xs text-slate-400">Inteligência Artificial de Alta Performance Jurídica</p>
+              <h1 className="text-lg font-bold tracking-tight">JurisPrime & AtaJur</h1>
+              <p className="text-[11px] text-slate-400">Inteligência Artificial de Alta Performance Jurídica</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            {/* SELETOR DE MÓDULOS */}
             <div className="flex space-x-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
               <button
                 onClick={() => setActiveTab("atajur")}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                   activeTab === "atajur"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-slate-300 hover:text-white"
                 }`}
               >
-                <Mic className="w-4 h-4" />
-                <span>AtaJur (Atas de Reunião)</span>
+                <Mic className="w-3.5 h-3.5" />
+                <span>AtaJur</span>
               </button>
               <button
                 onClick={() => setActiveTab("peticao")}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                   activeTab === "peticao"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-slate-300 hover:text-white"
                 }`}
               >
-                <FileText className="w-4 h-4" />
-                <span>JurisPrime (Petições de 1º Grau)</span>
+                <FileText className="w-3.5 h-3.5" />
+                <span>Petições (1º Grau)</span>
               </button>
             </div>
 
+            {/* BOTÃO CENTRAL DE AJUDA */}
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition cursor-pointer"
+              title="Manual e Guia de Uso"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden md:inline">Ajuda & Manual</span>
+            </button>
+
+            {/* BOTÃO LOGOUT */}
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition cursor-pointer"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition cursor-pointer"
               title="Encerrar Sessão"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sair</span>
             </button>
           </div>
         </div>
       </header>
 
+      {/* CONTEÚDO PRINCIPAL DO DASHBOARD */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* ABA 1: ATAJUR */}
         {activeTab === "atajur" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
@@ -573,7 +770,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setTipoReuniao("Cliente")}
-                    className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
+                    className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all cursor-pointer ${
                       tipoReuniao === "Cliente"
                         ? "bg-blue-50 border-blue-600 text-blue-700"
                         : "border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -584,7 +781,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setTipoReuniao("Interna")}
-                    className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
+                    className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all cursor-pointer ${
                       tipoReuniao === "Interna"
                         ? "bg-blue-50 border-blue-600 text-blue-700"
                         : "border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -626,7 +823,6 @@ export default function Home() {
                   Áudio da Reunião
                 </label>
 
-                {/* BOTÕES DE GRAVAÇÃO COM CRONÔMETRO */}
                 <div className="flex items-center space-x-3">
                   {!isRecording ? (
                     <button
@@ -654,7 +850,6 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* PLAYER DE ÁUDIO COM BOTÃO DE EXCLUIR */}
                 {audioUrl && (
                   <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center space-x-2">
                     <audio src={audioUrl} controls className="w-full h-8" />
@@ -669,7 +864,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* UPLOAD DE ARQUIVO COM INDICADOR DE ARQUIVO E EXCLUIR */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <input
@@ -678,7 +872,7 @@ export default function Home() {
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
                           setAudioFile(e.target.files[0]);
-                          setAudioUrl(null); // Limpa gravação de mic se enviar arquivo
+                          setAudioUrl(null);
                         }
                       }}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
@@ -787,19 +981,40 @@ export default function Home() {
           </div>
         )}
 
+        {/* ABA 2: JURISPRIME PETIÇÕES DE 1º GRAU */}
         {activeTab === "peticao" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-5 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+            <div className="lg:col-span-5 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-1">Petição de 1º Grau</h2>
+                <h2 className="text-lg font-semibold text-slate-900 mb-1">Petição Inicial de 1º Grau</h2>
                 <p className="text-xs text-slate-500">
-                  Redação técnica, fundamentação exaustiva e pedidos de tutela provisória (Art. 300 CPC).
+                  Redação técnica com análise documental, consulta DataJud e tutela de urgência (Art. 300 CPC).
                 </p>
               </div>
 
+              {/* SELETOR DE TRIBUNAL DATAJUD */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                  Documentos / Processos em PDF (Opcional)
+                  Tribunal de Origem (DataJud / CNJ)
+                </label>
+                <select
+                  value={tribunalSelecionado}
+                  onChange={(e) => setTribunalSelecionado(e.target.value)}
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium cursor-pointer"
+                >
+                  <option value="tjms">TJMS — Tribunal de Justiça de Mato Grosso do Sul</option>
+                  <option value="tjsp">TJSP — Tribunal de Justiça de São Paulo</option>
+                  <option value="tjmt">TJMT — Tribunal de Justiça de Mato Grosso</option>
+                  <option value="tjdft">TJDFT — Tribunal de Justiça do Distrito Federal</option>
+                  <option value="trf3">TRF3 — Tribunal Regional Federal da 3ª Região</option>
+                  <option value="trf1">TRF1 — Tribunal Regional Federal da 1ª Região</option>
+                </select>
+              </div>
+
+              {/* UPLOAD DE PROVAS */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
+                  Documentos Probatórios / Contratos em PDF
                 </label>
                 <input
                   type="file"
@@ -810,13 +1025,14 @@ export default function Home() {
                 />
               </div>
 
+              {/* INSTRUÇÃO E FATOS */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                  Fatos, Pretensão do Cliente & Teses
+                  Fatos, Pretensão do Autor & Número CNJ
                 </label>
                 <textarea
-                  rows={8}
-                  placeholder="Descreva a pretensão do cliente, conduta ilícita da parte contrária, valores envolvidos e necessidade de tutela de urgência..."
+                  rows={7}
+                  placeholder="Ex: Ação Declaratória c/c Indenizatória. Autor sofreu negativação indevida pelo Banco X no valor de R$ 5.000,00 sem contrato firmado. Requer tutela de urgência inaudita altera parte para exclusão no Serasa e indenização de R$ 15.000,00..."
                   value={instrucaoPeticao}
                   onChange={(e) => setInstrucaoPeticao(e.target.value)}
                   className="w-full p-3 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -832,23 +1048,24 @@ export default function Home() {
                 {gerandoPeticao ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>A redigir petição com streaming...</span>
+                    <span>Redigindo Minuta com Fundamentação Exaustiva...</span>
                   </>
                 ) : (
                   <>
-                    <FileText className="w-5 h-5" />
-                    <span>Redigir Minuta de 1º Grau</span>
+                    <Scale className="w-5 h-5" />
+                    <span>Redigir Petição Inicial</span>
                   </>
                 )}
               </button>
             </div>
 
+            {/* PREVIEW DA PEÇA PROCESSUAL */}
             <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-slate-200 shadow-sm min-h-[500px] flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
                   <h3 className="font-semibold text-slate-900 flex items-center space-x-2">
-                    <Scale className="w-5 h-5 text-blue-600" />
-                    <span>Minuta Processual</span>
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <span>Peça Processual (Padrão Forense)</span>
                   </h3>
                   {peticaoGerada && (
                     <button
@@ -862,13 +1079,13 @@ export default function Home() {
                 </div>
 
                 {peticaoGerada ? (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg font-mono text-xs whitespace-pre-wrap max-h-[550px] overflow-y-auto">
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg font-serif text-[15px] leading-relaxed text-slate-900 whitespace-pre-wrap max-h-[580px] overflow-y-auto select-text shadow-inner">
                     {peticaoGerada}
                   </div>
                 ) : (
                   <div className="h-64 flex flex-col items-center justify-center text-slate-400 space-y-2">
                     <FileText className="w-10 h-10 stroke-1" />
-                    <p className="text-sm">Os argumentos e a petição serão exibidos em tempo real aqui.</p>
+                    <p className="text-sm">A petição completa formatada para protocolo surgirá aqui em tempo real.</p>
                   </div>
                 )}
               </div>
