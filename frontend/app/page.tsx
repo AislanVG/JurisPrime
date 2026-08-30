@@ -107,7 +107,7 @@ export default function Home() {
           password,
         });
         if (error) throw error;
-        alert("Cadastro realizado com sucesso! Você já pode acessar a plataforma.");
+        alert("Cadastro realizado! Você já pode acessar a plataforma.");
         setAuthMode("login");
       }
     } catch (err: any) {
@@ -312,26 +312,26 @@ export default function Home() {
 
   if (loadingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fdfdfd]">
-        <Loader2 className="w-9 h-9 text-blue-600 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="w-8 h-8 text-[#1e3a8a] animate-spin" />
       </div>
     );
   }
 
   // =========================================================================
-  // 1. TELA DE LOGIN ESPAÇOSA E PROPORCIONAL
+  // 1. TELA DE LOGIN IDÊNTICA AO STREAMLIT
   // =========================================================================
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#fdfdfd] flex items-center justify-center px-6 py-12 lg:px-16">
-        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+      <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-[940px] grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
           
-          {/* LADO ESQUERDO: FORMULÁRIO (COLUNA 6) */}
-          <div className="lg:col-span-6 flex flex-col items-center text-center max-w-lg mx-auto w-full">
-            <h1 className="text-4xl sm:text-[42px] font-extrabold text-[#0B132B] tracking-tight mb-2.5 leading-[1.15]">
+          {/* LADO ESQUERDO: FORMULÁRIO */}
+          <div className="flex flex-col items-center text-center w-full max-w-[390px] mx-auto">
+            <h1 className="text-[26px] font-bold text-slate-900 tracking-tight leading-tight mb-1">
               Sua rotina jurídica <br /> mais eficiente
             </h1>
-            <p className="text-sm text-slate-500 mb-8 font-medium">
+            <p className="text-[12px] text-slate-500 mb-6">
               Faça login ou experimente grátis agora mesmo!
             </p>
 
@@ -339,9 +339,9 @@ export default function Home() {
             <button
               onClick={handleGoogleLogin}
               type="button"
-              className="w-full flex items-center justify-center space-x-3 py-3.5 px-4 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 text-[15px] font-semibold text-slate-700 shadow-sm hover:shadow transition-all mb-6"
+              className="w-full flex items-center justify-center space-x-2.5 py-2.5 px-4 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-[13px] font-medium text-slate-700 shadow-sm transition-all mb-4"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -363,16 +363,16 @@ export default function Home() {
             </button>
 
             {/* DIVISOR OU */}
-            <div className="flex items-center w-full mb-6">
+            <div className="flex items-center w-full mb-4">
               <div className="flex-grow border-t border-slate-200"></div>
-              <span className="flex-shrink mx-4 text-xs text-slate-400 font-medium">ou</span>
+              <span className="flex-shrink mx-3 text-[11px] text-slate-400">ou</span>
               <div className="flex-grow border-t border-slate-200"></div>
             </div>
 
             {/* FORMULÁRIO EMAIL & SENHA */}
-            <form onSubmit={handleEmailAuth} className="w-full space-y-4 text-left">
+            <form onSubmit={handleEmailAuth} className="w-full space-y-3.5 text-left">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">
                   E-mail *
                 </label>
                 <input
@@ -381,12 +381,12 @@ export default function Home() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition"
+                  className="w-full px-3 py-2.5 text-[13px] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] transition"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">
                   Senha *
                 </label>
                 <div className="relative">
@@ -396,42 +396,42 @@ export default function Home() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent pr-12 transition"
+                    className="w-full px-3 py-2.5 text-[13px] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] pr-10 transition"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
               {authError && (
-                <p className="text-xs text-red-500 font-medium mt-1">{authError}</p>
+                <p className="text-[11px] text-red-500 font-medium">{authError}</p>
               )}
 
               <button
                 type="submit"
                 disabled={authLoading}
-                className="w-full py-3.5 bg-[#17387e] hover:bg-[#122c64] text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 mt-2 cursor-pointer"
+                className="w-full py-2.5 bg-[#17387e] hover:bg-[#122c64] text-white rounded-lg font-semibold text-[13px] shadow-sm transition-all flex items-center justify-center space-x-2 mt-2"
               >
                 {authLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <span>{authMode === "login" ? "Continuar com e-mail →" : "Cadastrar Conta →"}</span>
                 )}
               </button>
 
-              <div className="text-center pt-3">
+              <div className="text-center pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setAuthMode(authMode === "login" ? "register" : "login");
                     setAuthError(null);
                   }}
-                  className="text-xs font-medium text-slate-500 hover:text-blue-700 transition"
+                  className="text-[11px] text-slate-500 hover:text-blue-700 transition"
                 >
                   {authMode === "login"
                     ? "Não tem uma conta? Crie uma agora"
@@ -440,44 +440,44 @@ export default function Home() {
               </div>
             </form>
 
-            <p className="text-[11px] text-slate-400 mt-8 leading-relaxed">
+            <p className="text-[10px] text-slate-400 mt-6 leading-relaxed">
               Ao fazer login você concorda com os <br />
-              <span className="underline cursor-pointer hover:text-slate-600">Termos de Uso</span> e a{" "}
-              <span className="underline cursor-pointer hover:text-slate-600">Política de Privacidade</span>.
+              <span className="underline cursor-pointer">Termos de Uso</span> e a{" "}
+              <span className="underline cursor-pointer">Política de Privacidade</span>.
             </p>
           </div>
 
-          {/* LADO DIREITO: CARD INSTITUCIONAL AZUL ESCURO (COLUNA 6) */}
-          <div className="lg:col-span-6 bg-[#0B132B] text-white p-10 sm:p-14 rounded-[32px] shadow-2xl flex flex-col justify-between min-h-[580px] relative overflow-hidden">
+          {/* LADO DIREITO: CARD INSTITUCIONAL CENTRALIZADO */}
+          <div className="bg-[#0B132B] text-white p-8 sm:p-10 rounded-[28px] shadow-xl flex flex-col justify-between min-h-[500px] text-center items-center">
             
-            {/* Topo do Card */}
-            <div>
-              <div className="flex items-center space-x-2.5 text-xs font-bold tracking-widest text-[#38bdf8] uppercase mb-10">
-                <svg className="w-5 h-5 text-[#38bdf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Bloco Superior Totalmente Centralizado */}
+            <div className="w-full flex flex-col items-center">
+              <div className="inline-flex items-center space-x-2 text-[11px] font-bold tracking-widest text-[#38bdf8] uppercase mb-8">
+                <svg className="w-4 h-4 text-[#38bdf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <span>AVJURIS<span className="text-white">.AI</span></span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold leading-[1.15] mb-8">
+              <h2 className="text-[26px] sm:text-[28px] font-bold leading-snug mb-6 text-white max-w-[340px]">
                 A infraestrutura <br /> definitiva para <br />
                 <span className="text-[#38bdf8]">advogados de elite</span>
               </h2>
             </div>
 
-            {/* DEPOIMENTO CARD INTERNO */}
-            <div className="bg-[#0F172A]/90 border border-white/10 rounded-2xl p-6 sm:p-8 backdrop-blur-sm">
-              <span className="text-3xl text-[#38bdf8] leading-none block mb-3 font-serif font-black">“</span>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed italic mb-6">
+            {/* Depoimento Interno */}
+            <div className="bg-[#0F172A]/95 border border-white/10 rounded-xl p-5 text-left w-full">
+              <span className="text-2xl text-[#38bdf8] leading-none block mb-2 font-serif font-black">“</span>
+              <p className="text-[11px] text-slate-300 leading-relaxed italic mb-4">
                 A AvJuris IA revolucionou a forma como conduzimos nosso trabalho no escritório. Com a capacidade de pesquisar jurisprudência real e emitir atas e pareceres detalhados, conseguimos otimizar nosso tempo e blindar nosso faturamento.
               </p>
-              <div className="flex items-center space-x-3.5">
-                <div className="w-10 h-10 rounded-full bg-[#38bdf8] text-[#0B132B] font-bold text-xs flex items-center justify-center shadow-md">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-full bg-[#38bdf8] text-[#0B132B] font-bold text-[11px] flex items-center justify-center">
                   MC
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white tracking-wide">Mariana Costa</h4>
-                  <p className="text-[11px] text-slate-400">Advogada Sênior</p>
+                  <h4 className="text-[11px] font-bold text-white">Mariana Costa</h4>
+                  <p className="text-[9px] text-slate-400">Advogada Sênior</p>
                 </div>
               </div>
             </div>
