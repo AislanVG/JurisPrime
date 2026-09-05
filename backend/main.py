@@ -1,10 +1,13 @@
 import os
 import re
 import json
+import io
 import asyncio
+from datetime import date
 from typing import List, Optional
+
 import requests
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
@@ -13,9 +16,10 @@ from google.genai import types
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-import io
+from pypdf import PdfReader
+from supabase import create_client, Client
 
-app = FastAPI(title="JurisPrime API")
+app = FastAPI(title="JurisPrime & AtaJur API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,10 +29,128 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- VARIÁVEIS DE AMBIENTE ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 CNJ_API_KEY = os.getenv("CNJ_API_KEY", "")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY", "")
 
-# --- MÓDULO DATAJUD / CNJ ---
+# --- CLIENTE SUPABASE ADMIN (Para controle de assinaturas e cotas) ---
+supabase: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+
+# =====================================================================
+# 1. FUNÇÕES DE VALIDAÇÃO DE COTAS E LIMITES DOS PLANOS
+# =====================================================================
+
+def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple[str, bytes]] = None):
+    """
+    Valida limites de documentos/mês, páginas máximas e tamanho de arquivos em MB.
+    Se o user_id não for informado ou o Supabase não estiver configurado, permite a execução (fallback).
+    """
+    if not user_id or not supabase:
+        return
+
+    # 1. Busca dados da assinatura e regras do plano associado
+    try:
+        res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
+        if not res.data or len(res.data) == 0:
+            # Se não existir registro de assinatura, cria o plano 'basico' padrão para o usuário
+            novo_registro = {
+                "user_id": user_id,
+                "plano_id": "basico",
+                "status": "active",
+                "documentos_usados_mes": 0,
+                "mes_referencia": str(date.today().replace(day=1))
+            }
+            supabase.table("assinaturas").insert(novo_registro).execute()
+            res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
+        
+        assinatura = res.data[0]
+        plano = assinatura.get("planos")
+
+        if not plano:
+            # Fallback caso a tabela de planos não tenha sido populada
+            plano = {
+                "nome": "Básico",
+                "max_documentos_mes": 15,
+                "max_paginas_upload": 500,
+                "max_mb_arquivo": 150
+            }
+
+        # 2. Reseta o consumo caso tenha virado o mês
+        mes_atual = str(date.today().replace(day=1))
+        if str(assinatura.get("mes_referencia")) != mes_atual:
+            supabase.table("assinaturas").update({
+                "documentos_usados_mes": 0,
+                "mes_referencia": mes_atual
+            }).eq("user_id", user_id).execute()
+            assinatura["documentos_usados_mes"] = 0
+
+        # 3. Validação da cota mensal de documentos
+        docs_usados = assinatura.get("documentos_usados_mes", 0)
+        max_docs = plano.get("max_documentos_mes", 15)
+        if docs_usados >= max_docs:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Limite mensal de {max_docs} documentos atingido para o plano {plano.get('nome')}. Realize um upgrade de plano."
+            )
+
+        # 4. Validação de tamanho (MB) e contagem de páginas dos PDFs
+        if arquivos_bytes:
+            total_paginas = 0
+            max_mb = plano.get("max_mb_arquivo", 150)
+            max_pags = plano.get("max_paginas_upload", 500)
+
+            for filename, raw_bytes in arquivos_bytes:
+                # Checa tamanho do arquivo individual
+                tamanho_mb = len(raw_bytes) / (1024 * 1024)
+                if tamanho_mb > max_mb:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"O arquivo '{filename}' possui {tamanho_mb:.1f}MB e excede o limite de {max_mb}MB do plano {plano.get('nome')}."
+                    )
+
+                # Conta páginas de PDFs
+                if filename.lower().endswith(".pdf"):
+                    try:
+                        reader = PdfReader(io.BytesIO(raw_bytes))
+                        total_paginas += len(reader.pages)
+                    except Exception:
+                        pass
+
+            if total_paginas > max_pags:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"O total de {total_paginas} páginas enviadas excede o limite de {max_pags} páginas do plano {plano.get('nome')}."
+                )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Em caso de erro de infraestrutura na verificação, loga sem travar o usuário
+        print(f"Aviso de validação de assinatura: {str(e)}")
+
+
+def registrar_incremento_documento(user_id: Optional[str]):
+    """Incrementa em +1 a contagem de documentos consumidos no mês."""
+    if not user_id or not supabase:
+        return
+    try:
+        res = supabase.table("assinaturas").select("documentos_usados_mes").eq("user_id", user_id).single().execute()
+        if res.data:
+            atual = res.data.get("documentos_usados_mes", 0)
+            supabase.table("assinaturas").update({"documentos_usados_mes": atual + 1}).eq("user_id", user_id).execute()
+    except Exception as e:
+        print(f"Erro ao incrementar consumo de documento: {str(e)}")
+
+
+# =====================================================================
+# 2. MÓDULO DATAJUD / CNJ
+# =====================================================================
+
 def consultar_datajud(numero_processo: str, tribunal: str = "tjsp") -> Optional[str]:
     if not CNJ_API_KEY:
         return None
@@ -57,7 +179,11 @@ def consultar_datajud(numero_processo: str, tribunal: str = "tjsp") -> Optional[
         return None
     return None
 
-# --- PROMPT FORENSE DE 1º GRAU ---
+
+# =====================================================================
+# 3. PROMPTS FORENSES
+# =====================================================================
+
 SUPERPROMPT_PETICAO_1GRAU = """
 Você é um Advogado Sênior e Especialista em Direito Processual Civil e Prática Forense de 1º Grau.
 Sua missão é redigir uma PETIÇÃO INICIAL DE 1º GRAU (ou Peça Processual Técnica) completa, exaustiva, de alta densidade jurídica e pronta para protocolo (meta de 2.000 a 3.500 palavras).
@@ -71,33 +197,61 @@ DIRETRIZES TÉCNICAS E FORENSES:
 6. PEDIDOS E REQUERIMENTOS FINAIS: Relação minuciosa com citações, produção de provas, inversão do ônus da prova, procedência integral, condenação em custas/sucumbência e valor da causa.
 """
 
+SUPERPROMPT_ATAJUR = """
+Você é um Secretário Jurídico Executivo e Consultor em Gestão Legal de Alto Desempenho.
+Sua missão é processar a gravação de áudio da reunião e gerar uma ATA EXECUTIVA FORMAL completa, precisa e estruturada.
+
+ESTRUTURA OBRIGATÓRIA DA ATA:
+1. CABEÇALHO EXECUTIVO: Data/Hora, Tipo de Reunião, Presentes e Pauta Principal.
+2. RESUMO EXECUTIVO DOS FATOS E DELIBERAÇÕES: Síntese estruturada em tópicos claros sobre as decisões tomadas.
+3. MATRIZ DE RESPONSABILIDADES E PRAZOS (ACTION ITEMS):
+   - Ação / Tarefa
+   - Responsável Nominal
+   - Prazo Fatal (Data ou número de dias)
+4. PENDÊNCIAS DOCUMENTAIS E PRÓXIMOS PASSOS.
+5. CAMPO FORMAL PARA ASSINATURAS DOS PARTICIPANTES.
+"""
+
+
+# =====================================================================
+# 4. ROTAS DA API
+# =====================================================================
+
 @app.post("/api/peticao/gerar-stream")
 async def gerar_peticao_stream(
     instrucao_usuario: str = Form(...),
-    tribunal: str = Form("tjsp"),
+    tribunal: str = Form("tjms"),
+    user_id: Optional[str] = Form(None),
     arquivos: List[UploadFile] = File(None)
 ):
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Chave GEMINI_API_KEY não configurada no servidor.")
-    
+
+    # 1. Leitura dos arquivos e validação de cotas
+    arquivos_lidos = []
+    if arquivos:
+        for f in arquivos:
+            conteudo = await f.read()
+            arquivos_lidos.append((f.filename, conteudo))
+
+    verificar_e_consumir_cota(user_id=user_id, arquivos_bytes=arquivos_lidos)
+
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_parts = []
-    
-    # Varredura CNJ caso haja número no texto
+
+    # 2. Varredura no DataJud se houver numeração CNJ
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
             user_parts.append(types.Part.from_text(text=dados_cnj))
-    
-    # Processamento direto de PDFs em bytes
-    if arquivos:
-        for file in arquivos:
-            conteudo = await file.read()
-            if file.content_type == "application/pdf" or file.filename.endswith(".pdf"):
-                user_parts.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
-                user_parts.append(types.Part.from_text(text=f"[Documento Anexo: {file.filename}]"))
-    
+
+    # 3. Anexo de PDFs em bytes no Gemini
+    for filename, conteudo in arquivos_lidos:
+        if filename.lower().endswith(".pdf"):
+            user_parts.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
+            user_parts.append(types.Part.from_text(text=f"[Documento Anexo: {filename}]"))
+
     user_parts.append(types.Part.from_text(text=instrucao_usuario))
 
     async def stream_generator():
@@ -116,13 +270,88 @@ async def gerar_peticao_stream(
             for chunk in response:
                 if chunk.text:
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+            
+            # Ao concluir com sucesso, computa o consumo no banco
+            registrar_incremento_documento(user_id)
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(stream_generator(), media_type="text/event-stream")
 
-# --- EXPORTADOR DOCX PROFISSIONAL COM MARGENS FORENSES ---
+
+@app.post("/api/ata/processar-audio")
+async def processar_audio_ata(
+    audio: UploadFile = File(...),
+    tipo_reuniao: str = Form("Cliente"),
+    participantes: str = Form(...),
+    titulo: str = Form(...),
+    user_id: Optional[str] = Form(None)
+):
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="Chave GEMINI_API_KEY não configurada.")
+
+    # 1. Leitura do arquivo de áudio e validação de cotas
+    audio_bytes = await audio.read()
+    verificar_e_consumir_cota(user_id=user_id, arquivos_bytes=[(audio.filename, audio_bytes)])
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    
+    # 2. Identificação do MIME Type do áudio
+    mime_type = audio.content_type or "audio/webm"
+    if audio.filename.endswith(".mp3"):
+        mime_type = "audio/mp3"
+    elif audio.filename.endswith(".wav"):
+        mime_type = "audio/wav"
+    elif audio.filename.endswith(".m4a"):
+        mime_type = "audio/m4a"
+
+    prompt_contexto = f"""
+    DADOS DA REUNIÃO:
+    - Tipo: {tipo_reuniao}
+    - Participantes: {participantes}
+    - Pauta / Título: {titulo}
+    
+    Analise o áudio anexado e gere a Ata Executiva Formal completa.
+    """
+
+    try:
+        config = types.GenerateContentConfig(
+            system_instruction=SUPERPROMPT_ATAJUR,
+            temperature=0.2,
+            max_output_tokens=8192
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                        types.Part.from_text(text=prompt_contexto)
+                    ]
+                )
+            ],
+            config=config
+        )
+
+        # Computa consumo após sucesso
+        registrar_incremento_documento(user_id)
+
+        return {
+            "titulo": titulo,
+            "tipo_reuniao": tipo_reuniao,
+            "ata_markdown": response.text
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar áudio: {str(e)}")
+
+
+# =====================================================================
+# 5. EXPORTAÇÃO PARA DOCX FORMATADO
+# =====================================================================
+
 class ExportDocxRequest(BaseModel):
     titulo: str
     conteudo_markdown: str
@@ -130,8 +359,8 @@ class ExportDocxRequest(BaseModel):
 @app.post("/api/exportar-docx")
 async def exportar_docx(req: ExportDocxRequest):
     doc = Document()
-    
-    # Margens padrão ABNT / Forense
+
+    # Margens Forenses Padrão ABNT
     sections = doc.sections
     for section in sections:
         section.top_margin = Inches(1.18)     # 3 cm
@@ -139,7 +368,6 @@ async def exportar_docx(req: ExportDocxRequest):
         section.right_margin = Inches(0.78)   # 2 cm
         section.bottom_margin = Inches(0.78)  # 2 cm
 
-    # Estilo base
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Times New Roman'
@@ -152,10 +380,10 @@ async def exportar_docx(req: ExportDocxRequest):
         if not texto:
             doc.add_paragraph()
             continue
-        
+
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.5
-        
+
         if texto.startswith("# "):
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(texto.replace("# ", ""))
@@ -167,13 +395,13 @@ async def exportar_docx(req: ExportDocxRequest):
             run.font.size = Pt(12)
         else:
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.first_line_indent = Inches(0.78) # Recuo forense
+            p.paragraph_format.first_line_indent = Inches(0.78)
             p.add_run(texto)
 
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-    
+
     return Response(
         content=buffer.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
