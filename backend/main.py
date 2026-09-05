@@ -42,7 +42,7 @@ if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
 
 
 # =====================================================================
-# 1. FUNÇÕES DE VALIDAÇÃO DE COTAS E LIMITES DOS PLANOS
+# 1. FUNÇÕES DE SUPABASE: COTAS E HISTÓRICO DE DOCUMENTOS
 # =====================================================================
 
 def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple[str, bytes]] = None):
@@ -133,6 +133,29 @@ def registrar_incremento_documento(user_id: Optional[str]):
         print(f"Erro ao incrementar consumo de documento: {str(e)}")
 
 
+def salvar_documento_banco(
+    user_id: Optional[str],
+    titulo: str,
+    tipo: str,
+    conteudo: str,
+    instrucao: str = "",
+    tribunal: str = ""
+):
+    if not user_id or not supabase:
+        return
+    try:
+        supabase.table("documentos").insert({
+            "user_id": user_id,
+            "titulo": titulo[:120],
+            "tipo": tipo,
+            "conteudo_markdown": conteudo,
+            "instrucao_original": instrucao,
+            "tribunal": tribunal
+        }).execute()
+    except Exception as e:
+        print(f"Erro ao persistir documento no Supabase: {str(e)}")
+
+
 # =====================================================================
 # 2. MÓDULO DATAJUD / CNJ
 # =====================================================================
@@ -203,6 +226,40 @@ ESTRUTURA OBRIGATÓRIA DA ATA:
 # 4. ROTAS DA API
 # =====================================================================
 
+@app.get("/api/usuario/{user_id}/status")
+async def obter_status_usuario(user_id: str):
+    """Retorna o plano e o consumo de cota atual do usuário."""
+    if not supabase:
+        return {"plano": "Básico", "usados": 0, "maximo": 15}
+
+    try:
+        res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
+        if not res.data or len(res.data) == 0:
+            return {"plano": "Básico", "usados": 0, "maximo": 15}
+
+        assinatura = res.data[0]
+        plano = assinatura.get("planos") or {}
+        return {
+            "plano": plano.get("nome", "Básico"),
+            "usados": assinatura.get("documentos_usados_mes", 0),
+            "maximo": plano.get("max_documentos_mes", 15)
+        }
+    except Exception as e:
+        return {"plano": "Básico", "usados": 0, "maximo": 15, "erro": str(e)}
+
+
+@app.get("/api/documentos/{user_id}")
+async def listar_documentos_usuario(user_id: str):
+    """Lista o histórico de petições e atas criadas pelo usuário."""
+    if not supabase:
+        return []
+    try:
+        res = supabase.table("documentos").select("id, titulo, tipo, conteudo_markdown, instrucao_original, created_at").eq("user_id", user_id).order("created_at", desc=True).limit(30).execute()
+        return res.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar documentos: {str(e)}")
+
+
 @app.post("/api/peticao/gerar-stream")
 async def gerar_peticao_stream(
     instrucao_usuario: str = Form(...),
@@ -238,6 +295,7 @@ async def gerar_peticao_stream(
     user_parts.append(types.Part.from_text(text=instrucao_usuario))
 
     async def stream_generator():
+        conteudo_acumulado = []
         try:
             config = types.GenerateContentConfig(
                 system_instruction=SUPERPROMPT_PETICAO_1GRAU,
@@ -252,9 +310,22 @@ async def gerar_peticao_stream(
             )
             for chunk in response:
                 if chunk.text:
+                    conteudo_acumulado.append(chunk.text)
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
             
+            texto_final = "".join(conteudo_acumulado)
             registrar_incremento_documento(user_id)
+            
+            titulo_resumido = instrucao_usuario.split("\n")[0][:45]
+            salvar_documento_banco(
+                user_id=user_id,
+                titulo=f"{titulo_resumido}...",
+                tipo="Petição de 1º Grau",
+                conteudo=texto_final,
+                instrucao=instrucao_usuario,
+                tribunal=tribunal
+            )
+
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -318,6 +389,14 @@ async def processar_audio_ata(
 
         registrar_incremento_documento(user_id)
 
+        salvar_documento_banco(
+            user_id=user_id,
+            titulo=titulo,
+            tipo="Ata de Reunião",
+            conteudo=response.text,
+            instrucao=f"Participantes: {participantes} | Tipo: {tipo_reuniao}"
+        )
+
         return {
             "titulo": titulo,
             "tipo_reuniao": tipo_reuniao,
@@ -337,12 +416,10 @@ async def exportar_docx(
     conteudo_markdown: str = Form(...),
     template_timbrado: Optional[UploadFile] = File(None)
 ):
-    # Se o advogado enviou um modelo timbrado próprio em .docx
     if template_timbrado and template_timbrado.filename.endswith(".docx"):
         template_bytes = await template_timbrado.read()
         doc = Document(io.BytesIO(template_bytes))
     else:
-        # Se não enviou modelo, cria documento novo com padrão ABNT / Forense
         doc = Document()
         for section in doc.sections:
             section.top_margin = Inches(1.18)     # 3 cm
