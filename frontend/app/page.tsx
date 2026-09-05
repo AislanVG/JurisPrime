@@ -25,12 +25,26 @@ import {
   Sparkles, 
   ChevronRight, 
   Briefcase,
-  FileCheck2,
-  Edit3
+  FileCheck2
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://jurisprime-api.onrender.com";
+
+interface DocumentoHistorico {
+  id: string;
+  titulo: string;
+  tipo: string;
+  conteudo_markdown: string;
+  instrucao_original?: string;
+  created_at: string;
+}
+
+interface StatusPlano {
+  plano: string;
+  usados: number;
+  maximo: number;
+}
 
 export default function Home() {
   // --- ESTADO DE AUTENTICAÇÃO ---
@@ -74,23 +88,55 @@ export default function Home() {
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [statusEmail, setStatusEmail] = useState<string | null>(null);
 
-  // Histórico Simulado
-  const [historicoCasos, setHistoricoCasos] = useState<Array<{ id: string; titulo: string; tipo: string; data: string }>>([
-    { id: "1", titulo: "Ação Indenizatória c/c Tutela", tipo: "Petição de 1º Grau", data: "Hoje" },
-    { id: "2", titulo: "Alinhamento com Cliente Silva", tipo: "Ata de Reunião", data: "Ontem" }
-  ]);
+  // --- DADOS REAIS DO SUPABASE ---
+  const [historicoCasos, setHistoricoCasos] = useState<DocumentoHistorico[]>([]);
+  const [statusPlano, setStatusPlano] = useState<StatusPlano>({ plano: "Básico", usados: 0, maximo: 15 });
+
+  // Carregar histórico e status da cota
+  const carregarDadosUsuario = async (userId: string) => {
+    try {
+      const [resDocs, resStatus] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/documentos/${userId}`),
+        fetch(`${API_BASE_URL}/api/usuario/${userId}/status`)
+      ]);
+
+      if (resDocs.ok) {
+        const dataDocs = await resDocs.json();
+        setHistoricoCasos(dataDocs);
+      }
+
+      if (resStatus.ok) {
+        const dataStatus = await resStatus.json();
+        setStatusPlano({
+          plano: dataStatus.plano || "Básico",
+          usados: dataStatus.usados || 0,
+          maximo: dataStatus.maximo || 15
+        });
+      }
+    } catch (e) {
+      console.error("Erro ao carregar dados do usuário:", e);
+    }
+  };
 
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+      if (currentUser) {
+        carregarDadosUsuario(currentUser.id);
+      }
       setLoadingAuth(false);
     };
 
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+      if (currentUser) {
+        carregarDadosUsuario(currentUser.id);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -116,7 +162,6 @@ export default function Home() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Métricas do Texto
   const totalPalavras = resultadoTexto.trim() ? resultadoTexto.trim().split(/\s+/).length : 0;
   const estimativaPaginas = Math.max(1, Math.ceil(totalPalavras / 380));
 
@@ -145,6 +190,7 @@ export default function Home() {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setUser(data.user);
+        if (data.user) carregarDadosUsuario(data.user.id);
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -161,6 +207,7 @@ export default function Home() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setHistoricoCasos([]);
   };
 
   const handleStartRecording = async () => {
@@ -237,6 +284,12 @@ export default function Home() {
     setStatusEmail(null);
   };
 
+  const handleAbrirDocumentoSalvo = (doc: DocumentoHistorico) => {
+    setModuloSelecionado(doc.tipo === "Ata de Reunião" ? "ata" : "peticao");
+    setInstrucao(doc.instrucao_original || doc.titulo);
+    setResultadoTexto(doc.conteudo_markdown);
+  };
+
   const handleCopiarTexto = () => {
     if (!resultadoTexto) return;
     navigator.clipboard.writeText(resultadoTexto);
@@ -277,7 +330,7 @@ export default function Home() {
         if (!response.ok) throw new Error("Erro na resposta da API.");
         const data = await response.json();
         setResultadoTexto(data.ata_markdown);
-        setHistoricoCasos(prev => [{ id: Date.now().toString(), titulo: instrucao || "Ata de Reunião", tipo: "Ata de Reunião", data: "Agora" }, ...prev]);
+        if (user) carregarDadosUsuario(user.id);
       } catch (err: any) {
         alert(`Falha ao gerar ata: ${err.message}`);
       } finally {
@@ -321,7 +374,10 @@ export default function Home() {
           for (const line of lines) {
             if (line.startsWith("data: ")) {
               const dataStr = line.replace("data: ", "").trim();
-              if (dataStr === "[DONE]") break;
+              if (dataStr === "[DONE]") {
+                if (user) carregarDadosUsuario(user.id);
+                break;
+              }
               try {
                 const parsed = JSON.parse(dataStr);
                 if (parsed.text) {
@@ -331,7 +387,6 @@ export default function Home() {
             }
           }
         }
-        setHistoricoCasos(prev => [{ id: Date.now().toString(), titulo: instrucao.slice(0, 32) + "...", tipo: "Petição de 1º Grau", data: "Agora" }, ...prev]);
       } catch (error: any) {
         alert(`Falha ao redigir petição: ${error.message}`);
       } finally {
@@ -570,40 +625,47 @@ export default function Home() {
             <span>Nova Minuta / Conversa</span>
           </button>
 
-          {/* Seção Meus Casos */}
+          {/* Seção Meus Casos (Carregados do Supabase) */}
           <div className="space-y-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2">
-              Meus Casos
+              Meus Casos ({historicoCasos.length})
             </span>
-            <div className="space-y-1">
-              {historicoCasos.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setInstrucao(item.titulo)}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-xs text-slate-300 transition flex items-center justify-between group"
-                >
-                  <div className="truncate pr-2">
-                    <p className="font-medium text-white truncate">{item.titulo}</p>
-                    <p className="text-[10px] text-slate-500">{item.tipo}</p>
-                  </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-300 shrink-0" />
-                </button>
-              ))}
+            <div className="space-y-1 max-h-[380px] overflow-y-auto pr-1">
+              {historicoCasos.length === 0 ? (
+                <p className="text-[11px] text-slate-500 px-2 py-1">Nenhum caso salvo ainda</p>
+              ) : (
+                historicoCasos.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleAbrirDocumentoSalvo(item)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-xs text-slate-300 transition flex items-center justify-between group"
+                  >
+                    <div className="truncate pr-2">
+                      <p className="font-medium text-white truncate">{item.titulo}</p>
+                      <p className="text-[10px] text-slate-500">{item.tipo}</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-300 shrink-0" />
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
 
-        {/* Rodapé da Sidebar */}
+        {/* Rodapé da Sidebar (Cota Real Sincronizada) */}
         <div className="p-4 border-t border-slate-800 space-y-4">
           <div className="bg-[#0F172A] p-3 rounded-xl border border-white/5 space-y-2">
             <div className="flex justify-between text-[11px] text-slate-300 font-semibold">
               <span>Consumo do Mês</span>
-              <span className="text-[#38BDF8]">2 / 15 docs</span>
+              <span className="text-[#38BDF8]">{statusPlano.usados} / {statusPlano.maximo} docs</span>
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-blue-500 h-full w-[15%]"></div>
+              <div 
+                className="bg-blue-500 h-full transition-all duration-500"
+                style={{ width: `${Math.min(100, (statusPlano.usados / statusPlano.maximo) * 100)}%` }}
+              ></div>
             </div>
-            <p className="text-[10px] text-slate-400">Plano Básico Individual</p>
+            <p className="text-[10px] text-slate-400">Plano {statusPlano.plano}</p>
           </div>
 
           <div className="flex items-center justify-between pt-1">
