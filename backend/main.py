@@ -19,7 +19,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from pypdf import PdfReader
 from supabase import create_client, Client
 
-app = FastAPI(title="JurisPrime & AtaJur API")
+app = FastAPI(title="AvJuris API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,7 +35,7 @@ CNJ_API_KEY = os.getenv("CNJ_API_KEY", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY", "")
 
-# --- CLIENTE SUPABASE ADMIN (Para controle de assinaturas e cotas) ---
+# --- CLIENTE SUPABASE ADMIN ---
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -46,18 +46,12 @@ if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
 # =====================================================================
 
 def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple[str, bytes]] = None):
-    """
-    Valida limites de documentos/mês, páginas máximas e tamanho de arquivos em MB.
-    Se o user_id não for informado ou o Supabase não estiver configurado, permite a execução (fallback).
-    """
     if not user_id or not supabase:
         return
 
-    # 1. Busca dados da assinatura e regras do plano associado
     try:
         res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
         if not res.data or len(res.data) == 0:
-            # Se não existir registro de assinatura, cria o plano 'basico' padrão para o usuário
             novo_registro = {
                 "user_id": user_id,
                 "plano_id": "basico",
@@ -72,7 +66,6 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
         plano = assinatura.get("planos")
 
         if not plano:
-            # Fallback caso a tabela de planos não tenha sido populada
             plano = {
                 "nome": "Básico",
                 "max_documentos_mes": 15,
@@ -80,7 +73,6 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
                 "max_mb_arquivo": 150
             }
 
-        # 2. Reseta o consumo caso tenha virado o mês
         mes_atual = str(date.today().replace(day=1))
         if str(assinatura.get("mes_referencia")) != mes_atual:
             supabase.table("assinaturas").update({
@@ -89,7 +81,6 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
             }).eq("user_id", user_id).execute()
             assinatura["documentos_usados_mes"] = 0
 
-        # 3. Validação da cota mensal de documentos
         docs_usados = assinatura.get("documentos_usados_mes", 0)
         max_docs = plano.get("max_documentos_mes", 15)
         if docs_usados >= max_docs:
@@ -98,14 +89,12 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
                 detail=f"Limite mensal de {max_docs} documentos atingido para o plano {plano.get('nome')}. Realize um upgrade de plano."
             )
 
-        # 4. Validação de tamanho (MB) e contagem de páginas dos PDFs
         if arquivos_bytes:
             total_paginas = 0
             max_mb = plano.get("max_mb_arquivo", 150)
             max_pags = plano.get("max_paginas_upload", 500)
 
             for filename, raw_bytes in arquivos_bytes:
-                # Checa tamanho do arquivo individual
                 tamanho_mb = len(raw_bytes) / (1024 * 1024)
                 if tamanho_mb > max_mb:
                     raise HTTPException(
@@ -113,7 +102,6 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
                         detail=f"O arquivo '{filename}' possui {tamanho_mb:.1f}MB e excede o limite de {max_mb}MB do plano {plano.get('nome')}."
                     )
 
-                # Conta páginas de PDFs
                 if filename.lower().endswith(".pdf"):
                     try:
                         reader = PdfReader(io.BytesIO(raw_bytes))
@@ -130,12 +118,10 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
     except HTTPException:
         raise
     except Exception as e:
-        # Em caso de erro de infraestrutura na verificação, loga sem travar o usuário
         print(f"Aviso de validação de assinatura: {str(e)}")
 
 
 def registrar_incremento_documento(user_id: Optional[str]):
-    """Incrementa em +1 a contagem de documentos consumidos no mês."""
     if not user_id or not supabase:
         return
     try:
@@ -197,7 +183,7 @@ DIRETRIZES TÉCNICAS E FORENSES:
 6. PEDIDOS E REQUERIMENTOS FINAIS: Relação minuciosa com citações, produção de provas, inversão do ônus da prova, procedência integral, condenação em custas/sucumbência e valor da causa.
 """
 
-SUPERPROMPT_ATAJUR = """
+SUPERPROMPT_ATA_REUNIAO = """
 Você é um Secretário Jurídico Executivo e Consultor em Gestão Legal de Alto Desempenho.
 Sua missão é processar a gravação de áudio da reunião e gerar uma ATA EXECUTIVA FORMAL completa, precisa e estruturada.
 
@@ -227,7 +213,6 @@ async def gerar_peticao_stream(
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Chave GEMINI_API_KEY não configurada no servidor.")
 
-    # 1. Leitura dos arquivos e validação de cotas
     arquivos_lidos = []
     if arquivos:
         for f in arquivos:
@@ -239,14 +224,12 @@ async def gerar_peticao_stream(
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_parts = []
 
-    # 2. Varredura no DataJud se houver numeração CNJ
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
             user_parts.append(types.Part.from_text(text=dados_cnj))
 
-    # 3. Anexo de PDFs em bytes no Gemini
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_parts.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
@@ -271,7 +254,6 @@ async def gerar_peticao_stream(
                 if chunk.text:
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
             
-            # Ao concluir com sucesso, computa o consumo no banco
             registrar_incremento_documento(user_id)
             yield "data: [DONE]\n\n"
         except Exception as e:
@@ -291,13 +273,11 @@ async def processar_audio_ata(
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Chave GEMINI_API_KEY não configurada.")
 
-    # 1. Leitura do arquivo de áudio e validação de cotas
     audio_bytes = await audio.read()
     verificar_e_consumir_cota(user_id=user_id, arquivos_bytes=[(audio.filename, audio_bytes)])
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # 2. Identificação do MIME Type do áudio
     mime_type = audio.content_type or "audio/webm"
     if audio.filename.endswith(".mp3"):
         mime_type = "audio/mp3"
@@ -317,7 +297,7 @@ async def processar_audio_ata(
 
     try:
         config = types.GenerateContentConfig(
-            system_instruction=SUPERPROMPT_ATAJUR,
+            system_instruction=SUPERPROMPT_ATA_REUNIAO,
             temperature=0.2,
             max_output_tokens=8192
         )
@@ -336,7 +316,6 @@ async def processar_audio_ata(
             config=config
         )
 
-        # Computa consumo após sucesso
         registrar_incremento_documento(user_id)
 
         return {
@@ -349,24 +328,27 @@ async def processar_audio_ata(
 
 
 # =====================================================================
-# 5. EXPORTAÇÃO PARA DOCX FORMATADO
+# 5. EXPORTAÇÃO DOCX COM SUPORTE A MODELO TIMBRADO (.DOCX)
 # =====================================================================
 
-class ExportDocxRequest(BaseModel):
-    titulo: str
-    conteudo_markdown: str
-
 @app.post("/api/exportar-docx")
-async def exportar_docx(req: ExportDocxRequest):
-    doc = Document()
-
-    # Margens Forenses Padrão ABNT
-    sections = doc.sections
-    for section in sections:
-        section.top_margin = Inches(1.18)     # 3 cm
-        section.left_margin = Inches(1.18)    # 3 cm
-        section.right_margin = Inches(0.78)   # 2 cm
-        section.bottom_margin = Inches(0.78)  # 2 cm
+async def exportar_docx(
+    titulo: str = Form("Documento_AvJuris"),
+    conteudo_markdown: str = Form(...),
+    template_timbrado: Optional[UploadFile] = File(None)
+):
+    # Se o advogado enviou um modelo timbrado próprio em .docx
+    if template_timbrado and template_timbrado.filename.endswith(".docx"):
+        template_bytes = await template_timbrado.read()
+        doc = Document(io.BytesIO(template_bytes))
+    else:
+        # Se não enviou modelo, cria documento novo com padrão ABNT / Forense
+        doc = Document()
+        for section in doc.sections:
+            section.top_margin = Inches(1.18)     # 3 cm
+            section.left_margin = Inches(1.18)    # 3 cm
+            section.right_margin = Inches(0.78)   # 2 cm
+            section.bottom_margin = Inches(0.78)  # 2 cm
 
     style = doc.styles['Normal']
     font = style.font
@@ -374,7 +356,7 @@ async def exportar_docx(req: ExportDocxRequest):
     font.size = Pt(12)
     font.color.rgb = RGBColor(17, 24, 39)
 
-    linhas = req.conteudo_markdown.split("\n")
+    linhas = conteudo_markdown.split("\n")
     for linha in linhas:
         texto = linha.strip()
         if not texto:
@@ -405,5 +387,5 @@ async def exportar_docx(req: ExportDocxRequest):
     return Response(
         content=buffer.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f"attachment; filename={req.titulo}.docx"}
+        headers={"Content-Disposition": f"attachment; filename={titulo}.docx"}
     )
