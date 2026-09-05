@@ -6,9 +6,9 @@ import {
   Mic, 
   FileText, 
   Download, 
-  Mail, 
+  Copy,
+  Check,
   Loader2, 
-  Play, 
   Square, 
   Eye, 
   EyeOff, 
@@ -24,7 +24,9 @@ import {
   Send, 
   Sparkles, 
   ChevronRight, 
-  Briefcase 
+  Briefcase,
+  FileCheck2,
+  Edit3
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -53,6 +55,7 @@ export default function Home() {
   const [tipoReuniao, setTipoReuniao] = useState<"Cliente" | "Interna">("Cliente");
   const [participantes, setParticipantes] = useState("");
   const [arquivos, setArquivos] = useState<File[]>([]);
+  const [arquivoTimbrado, setArquivoTimbrado] = useState<File | null>(null);
 
   // Áudio
   const [isRecording, setIsRecording] = useState(false);
@@ -63,9 +66,10 @@ export default function Home() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Geração / Streaming
+  // Geração, Edição e Feedback
   const [gerando, setGerando] = useState(false);
   const [resultadoTexto, setResultadoTexto] = useState("");
+  const [copiado, setCopiado] = useState(false);
   const [emailDestino, setEmailDestino] = useState("");
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [statusEmail, setStatusEmail] = useState<string | null>(null);
@@ -111,6 +115,10 @@ export default function Home() {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
+
+  // Métricas do Texto
+  const totalPalavras = resultadoTexto.trim() ? resultadoTexto.trim().split(/\s+/).length : 0;
+  const estimativaPaginas = Math.max(1, Math.ceil(totalPalavras / 380));
 
   const handleGoogleLogin = async () => {
     setAuthError(null);
@@ -206,6 +214,17 @@ export default function Home() {
     }
   };
 
+  const handleTimbradoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.name.endsWith(".docx")) {
+        setArquivoTimbrado(file);
+      } else {
+        alert("Por favor, selecione um arquivo modelo no formato .docx");
+      }
+    }
+  };
+
   const handleRemoveFile = (index: number) => {
     setArquivos((prev) => prev.filter((_, i) => i !== index));
   };
@@ -216,6 +235,13 @@ export default function Home() {
     handleClearAudio();
     setResultadoTexto("");
     setStatusEmail(null);
+  };
+
+  const handleCopiarTexto = () => {
+    if (!resultadoTexto) return;
+    navigator.clipboard.writeText(resultadoTexto);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   };
 
   const handleExecutarIA = async () => {
@@ -316,20 +342,25 @@ export default function Home() {
 
   const handleDownloadDocx = async (titulo: string, conteudo: string) => {
     try {
+      const formData = new FormData();
+      formData.append("titulo", titulo || "Documento_AvJuris");
+      formData.append("conteudo_markdown", conteudo);
+      if (arquivoTimbrado) {
+        formData.append("template_timbrado", arquivoTimbrado);
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/exportar-docx`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo: titulo || "Minuta_AvJuris",
-          conteudo_markdown: conteudo,
-        }),
+        body: formData,
       });
+
+      if (!response.ok) throw new Error("Erro ao exportar docx");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${titulo || "Minuta_AvJuris"}.docx`;
+      a.download = `${titulo || "Documento_AvJuris"}.docx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -497,7 +528,7 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>Consulta em tempo real ao DataJud (CNJ) e STJ/STF</span>
+                <span>Exportação com template timbrado (.docx) do seu escritório</span>
               </div>
             </div>
           </div>
@@ -599,7 +630,7 @@ export default function Home() {
       {/* CANVAS CENTRAL */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        {/* HEADER SUPERIOR COM OS BOTÕES DE PETIÇÃO E ATA */}
+        {/* HEADER SUPERIOR */}
         <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
@@ -830,24 +861,32 @@ export default function Home() {
                   className="w-full text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none bg-transparent"
                 />
 
-                {/* Badges de Arquivos */}
-                {arquivos.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-2 pb-1 border-t border-slate-100">
-                    {arquivos.map((file, idx) => (
-                      <div key={idx} className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-[11px] text-slate-700 font-medium">
-                        <Paperclip className="w-3 h-3 text-slate-500" />
-                        <span className="truncate max-w-[150px]">{file.name}</span>
-                        <button type="button" onClick={() => handleRemoveFile(idx)} className="text-slate-400 hover:text-red-500 ml-1">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Badges de Arquivos & Modelo Timbrado */}
+                <div className="flex flex-wrap gap-2 pt-2 pb-1 border-t border-slate-100">
+                  {arquivoTimbrado && (
+                    <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-[11px] text-blue-700 font-semibold">
+                      <FileCheck2 className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="truncate max-w-[170px]">Timbrado: {arquivoTimbrado.name}</span>
+                      <button type="button" onClick={() => setArquivoTimbrado(null)} className="text-blue-400 hover:text-red-500 ml-1">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {arquivos.map((file, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-[11px] text-slate-700 font-medium">
+                      <Paperclip className="w-3 h-3 text-slate-500" />
+                      <span className="truncate max-w-[150px]">{file.name}</span>
+                      <button type="button" onClick={() => handleRemoveFile(idx)} className="text-slate-400 hover:text-red-500 ml-1">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
 
                 {/* Barra Inferior */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-2">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
                     <label className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-800 cursor-pointer p-1.5 rounded-lg hover:bg-slate-100 transition">
                       <Paperclip className="w-4 h-4" />
                       <span>Anexar autos / PDFs</span>
@@ -859,9 +898,17 @@ export default function Home() {
                         className="hidden"
                       />
                     </label>
-                    <span className="text-[11px] text-slate-400">
-                      {arquivos.length}/10 arquivos • até 150MB
-                    </span>
+
+                    <label className="flex items-center space-x-1.5 text-xs text-blue-600 hover:text-blue-800 cursor-pointer p-1.5 rounded-lg hover:bg-blue-50 transition font-medium">
+                      <FileCheck2 className="w-4 h-4" />
+                      <span>Usar Modelo Timbrado (.docx)</span>
+                      <input
+                        type="file"
+                        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={handleTimbradoUpload}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
 
                   <button
@@ -883,9 +930,10 @@ export default function Home() {
 
           ) : (
 
-            /* WORKSTATION FORENSE / SPLIT VIEW */
+            /* WORKSTATION FORENSE / SPLIT VIEW COM EDITOR DIRETO */
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch">
               
+              {/* Painel Esquerdo */}
               <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -908,6 +956,19 @@ export default function Home() {
                     className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
 
+                  {/* Modelo Timbrado Ativo */}
+                  {arquivoTimbrado && (
+                    <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-800">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileCheck2 className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span className="font-semibold truncate">Timbrado: {arquivoTimbrado.name}</span>
+                      </div>
+                      <button onClick={() => setArquivoTimbrado(null)} className="text-blue-500 hover:text-red-500">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
                   {arquivos.length > 0 && (
                     <div>
                       <span className="text-xs font-bold text-slate-700 mb-1.5 block">Documentos Anexados:</span>
@@ -929,35 +990,67 @@ export default function Home() {
                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
                 >
                   {gerando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  <span>{gerando ? "Processando..." : "Atualizar Redação"}</span>
+                  <span>{gerando ? "Processando..." : "Regenerar / Atualizar"}</span>
                 </button>
               </div>
 
+              {/* Painel Direito (Editor Estilo Folha Forense A4) */}
               <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <span className="font-bold text-slate-900 text-sm">
-                        {moduloSelecionado === "peticao" ? "Peça Processual (Padrão Forense)" : "Ata Executiva de Reunião"}
-                      </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        <span className="font-bold text-slate-900 text-sm">
+                          {moduloSelecionado === "peticao" ? "Peça Processual (Padrão Forense)" : "Ata Executiva de Reunião"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+                        <span>{totalPalavras.toLocaleString()} palavras</span>
+                        <span>•</span>
+                        <span>~{estimativaPaginas} {estimativaPaginas === 1 ? "página" : "páginas"} A4</span>
+                        {arquivoTimbrado && (
+                          <>
+                            <span>•</span>
+                            <span className="text-blue-600 font-medium">Timbrado ativo</span>
+                          </>
+                        )}
+                      </p>
                     </div>
 
                     {resultadoTexto && (
-                      <button
-                        onClick={() => handleDownloadDocx("Documento_AvJuris", resultadoTexto)}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Descarregar .DOCX</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={handleCopiarTexto}
+                          className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer"
+                        >
+                          {copiado ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiado ? "Copiado!" : "Copiar"}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDownloadDocx("Documento_AvJuris", resultadoTexto)}
+                          className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Exportar .DOCX</span>
+                        </button>
+                      </div>
                     )}
                   </div>
 
-                  <div className="p-8 bg-[#FAFAFA] border border-slate-200 rounded-xl font-serif text-[15px] leading-relaxed text-slate-900 whitespace-pre-wrap max-h-[620px] overflow-y-auto select-text shadow-inner">
-                    {resultadoTexto}
+                  {/* Editor / Visualizador da Folha Forense */}
+                  <div className="relative">
+                    <textarea
+                      rows={18}
+                      value={resultadoTexto}
+                      onChange={(e) => setResultadoTexto(e.target.value)}
+                      placeholder="O conteúdo gerado pela IA surgirá aqui para revisão e edição em tempo real..."
+                      className="w-full p-6 bg-[#FAFAFA] border border-slate-200 rounded-xl font-serif text-[15px] leading-relaxed text-slate-900 focus:outline-none focus:border-blue-400 focus:bg-white transition resize-none shadow-inner"
+                    />
+
                     {gerando && (
-                      <div className="flex items-center space-x-2 text-blue-600 font-sans text-xs mt-4 animate-pulse font-semibold">
+                      <div className="absolute bottom-4 left-6 flex items-center space-x-2 text-blue-600 font-sans text-xs bg-white/90 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm animate-pulse font-semibold">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span>Sintetizando minuta com rigor dogmático...</span>
                       </div>
@@ -965,6 +1058,7 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Disparo por E-mail */}
                 {resultadoTexto && (
                   <div className="border-t border-slate-100 pt-4 mt-4 flex items-center justify-between gap-4">
                     <div className="flex-1 flex space-x-2">
@@ -1009,8 +1103,9 @@ export default function Home() {
             
             <div className="p-6 space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed overflow-y-auto">
               <p><strong>1. Petição de 1º Grau:</strong> Anexe contratos em PDF e descreva os fatos e pedidos para obter a petição inicial completa com fundamentação legal e tutela de urgência (Art. 300 CPC).</p>
-              <p><strong>2. Consulta DataJud:</strong> Ao inserir o número do processo (20 dígitos), a plataforma busca os dados oficiais da vara e classe processual.</p>
-              <p><strong>3. Ata de Reunião:</strong> Grave o áudio pelo microfone ou anexe o arquivo para gerar atas executivas formais com matriz de prazos e tarefas.</p>
+              <p><strong>2. Modelo Timbrado (.docx):</strong> Anexe o arquivo timbrado do seu próprio escritório para que a minuta seja gerada e exportada diretamente dentro do seu layout oficial.</p>
+              <p><strong>3. Consulta DataJud:</strong> Ao inserir o número do processo (20 dígitos), a plataforma busca os dados oficiais da vara e classe processual.</p>
+              <p><strong>4. Ata de Reunião:</strong> Grave o áudio pelo microfone ou anexe o arquivo para gerar atas executivas formais com matriz de prazos e tarefas.</p>
             </div>
 
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
