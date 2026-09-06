@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://jurisprime.onrender.com";
+const API_BASE_URL = "https://jurisprime.onrender.com";
 
 interface DocumentoHistorico {
   id: string;
