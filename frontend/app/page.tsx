@@ -57,8 +57,9 @@ export default function Home() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // --- MODAL DE AJUDA ---
+  // --- MODAL DE AJUDA & ABAS ---
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpActiveTab, setHelpActiveTab] = useState<"peticoes" | "datajud" | "atajur" | "timbrado" | "seguranca">("peticoes");
 
   // --- SELETOR DE MÓDULO (PETIÇÃO OU ATA) ---
   const [moduloSelecionado, setModuloSelecionado] = useState<"peticao" | "ata">("peticao");
@@ -638,7 +639,7 @@ export default function Home() {
                   <button
                     key={item.id}
                     onClick={() => handleAbrirDocumentoSalvo(item)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-xs text-slate-300 transition flex items-center justify-between group"
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-xs text-slate-300 transition flex items-center justify-between group cursor-pointer"
                   >
                     <div className="truncate pr-2">
                       <p className="font-medium text-white truncate">{item.titulo}</p>
@@ -680,7 +681,7 @@ export default function Home() {
             </div>
             <button
               onClick={handleLogout}
-              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition"
+              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition cursor-pointer"
               title="Sair"
             >
               <LogOut className="w-4 h-4" />
@@ -767,7 +768,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setInstrucao("0000000-00.2026.8.12.0001")}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shrink-0 transition"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shrink-0 transition cursor-pointer"
                   >
                     Buscar processo
                   </button>
@@ -790,19 +791,19 @@ export default function Home() {
                   <>
                     <button
                       onClick={() => setInstrucao("Ação de Cobrança c/c Indenização por Danos Morais em face do Banco X decorrente de inclusão indevida no SPC/Serasa.")}
-                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition"
+                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition cursor-pointer"
                     >
                       Petição Inicial Cível
                     </button>
                     <button
                       onClick={() => setInstrucao("Requerimento de Tutela Provisória de Urgência Inaudita Altera Parte (Art. 300 CPC) para cancelamento imediato de desconto em benefício.")}
-                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition"
+                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition cursor-pointer"
                     >
                       Tutela de Urgência (Art. 300)
                     </button>
                     <button
                       onClick={() => setInstrucao("Contestação com preliminares de ilegitimidade passiva ad causam e inépcia da petição inicial.")}
-                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition"
+                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition cursor-pointer"
                     >
                       Contestação & Preliminares
                     </button>
@@ -814,7 +815,7 @@ export default function Home() {
                         setTipoReuniao("Cliente");
                         setInstrucao("Alinhamento estratégico inicial com o cliente para ajuizamento de ação rescisória e coleta de provas documentais.");
                       }}
-                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition"
+                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition cursor-pointer"
                     >
                       👤 Reunião com Cliente
                     </button>
@@ -823,7 +824,7 @@ export default function Home() {
                         setTipoReuniao("Interna");
                         setInstrucao("Reunião interna de sócios para divisão de teses de recursos e prazos fatais da semana.");
                       }}
-                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition"
+                      className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium text-slate-600 shadow-sm transition cursor-pointer"
                     >
                       ⚖️ Reunião Interna do Escritório
                     </button>
@@ -842,14 +843,14 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setTipoReuniao("Cliente")}
-                        className={`px-2.5 py-1 rounded-md text-xs font-medium ${tipoReuniao === "Cliente" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer ${tipoReuniao === "Cliente" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}
                       >
                         Reunião Cliente
                       </button>
                       <button
                         type="button"
                         onClick={() => setTipoReuniao("Interna")}
-                        className={`px-2.5 py-1 rounded-md text-xs font-medium ${tipoReuniao === "Interna" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer ${tipoReuniao === "Interna" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}
                       >
                         Reunião Interna
                       </button>
@@ -860,7 +861,7 @@ export default function Home() {
                       <select
                         value={tribunal}
                         onChange={(e) => setTribunal(e.target.value)}
-                        className="p-1 bg-slate-50 border border-slate-200 rounded-md font-medium text-slate-700 text-xs focus:outline-none"
+                        className="p-1 bg-slate-50 border border-slate-200 rounded-md font-medium text-slate-700 text-xs focus:outline-none cursor-pointer"
                       >
                         <option value="tjms">TJMS (Mato Grosso do Sul)</option>
                         <option value="tjsp">TJSP (São Paulo)</option>
@@ -903,7 +904,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={handleClearAudio}
-                      className="text-slate-400 hover:text-red-500 p-1"
+                      className="text-slate-400 hover:text-red-500 p-1 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -929,7 +930,7 @@ export default function Home() {
                     <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-[11px] text-blue-700 font-semibold">
                       <FileCheck2 className="w-3.5 h-3.5 text-blue-600" />
                       <span className="truncate max-w-[170px]">Timbrado: {arquivoTimbrado.name}</span>
-                      <button type="button" onClick={() => setArquivoTimbrado(null)} className="text-blue-400 hover:text-red-500 ml-1">
+                      <button type="button" onClick={() => setArquivoTimbrado(null)} className="text-blue-400 hover:text-red-500 ml-1 cursor-pointer">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -939,7 +940,7 @@ export default function Home() {
                     <div key={idx} className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-[11px] text-slate-700 font-medium">
                       <Paperclip className="w-3 h-3 text-slate-500" />
                       <span className="truncate max-w-[150px]">{file.name}</span>
-                      <button type="button" onClick={() => handleRemoveFile(idx)} className="text-slate-400 hover:text-red-500 ml-1">
+                      <button type="button" onClick={() => handleRemoveFile(idx)} className="text-slate-400 hover:text-red-500 ml-1 cursor-pointer">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -1005,7 +1006,7 @@ export default function Home() {
                     </h3>
                     <button
                       onClick={handleNovoAtendimento}
-                      className="text-xs text-blue-600 font-semibold hover:underline"
+                      className="text-xs text-blue-600 font-semibold hover:underline cursor-pointer"
                     >
                       + Novo
                     </button>
@@ -1025,7 +1026,7 @@ export default function Home() {
                         <FileCheck2 className="w-4 h-4 text-blue-600 shrink-0" />
                         <span className="font-semibold truncate">Timbrado: {arquivoTimbrado.name}</span>
                       </div>
-                      <button onClick={() => setArquivoTimbrado(null)} className="text-blue-500 hover:text-red-500">
+                      <button onClick={() => setArquivoTimbrado(null)} className="text-blue-500 hover:text-red-500 cursor-pointer">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1049,7 +1050,7 @@ export default function Home() {
                   type="button"
                   onClick={handleExecutarIA}
                   disabled={gerando}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
                   {gerando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   <span>{gerando ? "Processando..." : "Regenerar / Atualizar"}</span>
@@ -1134,7 +1135,7 @@ export default function Home() {
                       <button
                         onClick={handleEnviarEmail}
                         disabled={enviandoEmail}
-                        className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 disabled:opacity-50 transition"
+                        className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 disabled:opacity-50 transition cursor-pointer"
                       >
                         {enviandoEmail ? "Enviando..." : "Enviar Anexo"}
                       </button>
@@ -1149,32 +1150,279 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL DE AJUDA */}
+      {/* =====================================================================
+          MODAL DE AJUDA & MANUAL OPERACIONAL AVANÇADO (COM ABAS)
+      ====================================================================== */}
       {showHelpModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="px-6 py-4 bg-[#0B132B] text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Cabeçalho do Modal */}
+            <div className="px-6 py-4 bg-[#0B132B] text-white flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center space-x-3">
-                <BookOpen className="w-5 h-5 text-[#38BDF8]" />
-                <h3 className="text-sm font-bold">Manual Operacional AvJuris</h3>
+                <div className="p-2 bg-blue-600/30 border border-blue-500/30 rounded-lg text-[#38BDF8]">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-white">Central de Ajuda & Manual Operacional</h3>
+                  <p className="text-[11px] text-slate-400">Guia técnico e prático de recursos do AvJuris.AI</p>
+                </div>
               </div>
-              <button onClick={() => setShowHelpModal(false)} className="text-slate-400 hover:text-white">
+              <button 
+                onClick={() => setShowHelpModal(false)} 
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <div className="p-6 space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed overflow-y-auto">
-              <p><strong>1. Petição de 1º Grau:</strong> Anexe contratos em PDF e descreva os fatos e pedidos para obter a petição inicial completa com fundamentação legal e tutela de urgência (Art. 300 CPC).</p>
-              <p><strong>2. Modelo Timbrado (.docx):</strong> Anexe o arquivo timbrado do seu próprio escritório para que a minuta seja gerada e exportada diretamente dentro do seu layout oficial.</p>
-              <p><strong>3. Consulta DataJud:</strong> Ao inserir o número do processo (20 dígitos), a plataforma busca os dados oficiais da vara e classe processual.</p>
-              <p><strong>4. Ata de Reunião:</strong> Grave o áudio pelo microfone ou anexe o arquivo para gerar atas executivas formais com matriz de prazos e tarefas.</p>
-            </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
-              <button onClick={() => setShowHelpModal(false)} className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg">
-                Fechar Manual
+            {/* Menu de Abas / Categorias */}
+            <div className="flex border-b border-slate-200 bg-slate-50 px-6 gap-2 sm:gap-4 overflow-x-auto text-xs font-semibold text-slate-600 shrink-0">
+              <button
+                onClick={() => setHelpActiveTab("peticoes")}
+                className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                  helpActiveTab === "peticoes" 
+                    ? "border-blue-600 text-blue-600 font-bold" 
+                    : "border-transparent hover:text-slate-900"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Petições & Peças</span>
+              </button>
+
+              <button
+                onClick={() => setHelpActiveTab("datajud")}
+                className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                  helpActiveTab === "datajud" 
+                    ? "border-blue-600 text-blue-600 font-bold" 
+                    : "border-transparent hover:text-slate-900"
+                }`}
+              >
+                <Building className="w-3.5 h-3.5" />
+                <span>Conexão DataJud</span>
+              </button>
+
+              <button
+                onClick={() => setHelpActiveTab("atajur")}
+                className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                  helpActiveTab === "atajur" 
+                    ? "border-blue-600 text-blue-600 font-bold" 
+                    : "border-transparent hover:text-slate-900"
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5" />
+                <span>Atas & Áudios</span>
+              </button>
+
+              <button
+                onClick={() => setHelpActiveTab("timbrado")}
+                className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                  helpActiveTab === "timbrado" 
+                    ? "border-blue-600 text-blue-600 font-bold" 
+                    : "border-transparent hover:text-slate-900"
+                }`}
+              >
+                <FileCheck2 className="w-3.5 h-3.5" />
+                <span>Modelo Timbrado</span>
+              </button>
+
+              <button
+                onClick={() => setHelpActiveTab("seguranca")}
+                className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                  helpActiveTab === "seguranca" 
+                    ? "border-blue-600 text-blue-600 font-bold" 
+                    : "border-transparent hover:text-slate-900"
+                }`}
+              >
+                <Scale className="w-3.5 h-3.5" />
+                <span>Planos & Cotas</span>
               </button>
             </div>
+
+            {/* Conteúdo Dinâmico da Aba Selecionada */}
+            <div className="p-6 sm:p-8 space-y-6 text-slate-700 overflow-y-auto flex-1 text-xs sm:text-sm leading-relaxed">
+              
+              {/* 1. ABA: PETIÇÕES & PEÇAS */}
+              {helpActiveTab === "peticoes" && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4">
+                    <h4 className="font-bold text-blue-950 text-sm mb-1 flex items-center gap-2">
+                      <span>⚖️</span> Elaboração de Peças com Inteligência Forense
+                    </h4>
+                    <p className="text-xs text-blue-900 leading-relaxed">
+                      O motor jurídico do AvJuris é treinado no Direito brasileiro e analisa a legislação (CPC, Código Civil, CDC, etc.) com teses estruturadas prontas para protocolo.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                      <h5 className="font-bold text-slate-900 mb-1">Como fornecer boas instruções:</h5>
+                      <ul className="list-disc pl-4 space-y-1 text-xs text-slate-600">
+                        <li>Indique a <strong>qualificação básica</strong> e os fatos em ordem cronológica.</li>
+                        <li>Descreva os pedidos claros: condenação, restituição em dobro ou reparação moral.</li>
+                        <li>Se houver urgência, solicite expressamente a <strong>Tutela de Urgência (Art. 300 CPC)</strong>.</li>
+                      </ul>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                      <h5 className="font-bold text-slate-900 mb-1">Anexo de Autos em PDF:</h5>
+                      <ul className="list-disc pl-4 space-y-1 text-xs text-slate-600">
+                        <li>Você pode anexar até <strong>10 arquivos por vez</strong> (contratos, extratos, notificações).</li>
+                        <li>A IA extrai automaticamente cláusulas contratuais e valores para citar no mérito.</li>
+                        <li>Limite de até 150MB por arquivo e até 1.500 páginas conforme seu plano.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. ABA: CONEXÃO DATAJUD */}
+              {helpActiveTab === "datajud" && (
+                <div className="space-y-4">
+                  <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-4">
+                    <h4 className="font-bold text-purple-950 text-sm mb-1 flex items-center gap-2">
+                      <span>🏛️</span> Integração em Tempo Real com o CNJ / DataJud
+                    </h4>
+                    <p className="text-xs text-purple-900 leading-relaxed">
+                      O AvJuris conecta-se à API Pública do Conselho Nacional de Justiça para buscar dados processuais oficiais sem necessidade de preenchimento manual.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">Formato do Número CNJ:</h5>
+                      <p className="text-xs text-slate-600 mb-2">
+                        Digite ou cole o número único do processo com 20 dígitos no campo de instruções (ex: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-blue-600">0001234-56.2026.8.12.0001</code>).
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        O sistema identifica a comarca, classe processual, vara competente e assuntos cadastrados, aplicando o endereçamento correto na petição.
+                      </p>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">Tribunais Habilitados:</h5>
+                      <p className="text-xs text-slate-600">
+                        TJMS, TJSP, TJMT, TJDFT, TRF3 e TRF1 (com expansão contínua para outros tribunais estaduais e federais).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. ABA: ATAS & ÁUDIOS */}
+              {helpActiveTab === "atajur" && (
+                <div className="space-y-4">
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4">
+                    <h4 className="font-bold text-emerald-950 text-sm mb-1 flex items-center gap-2">
+                      <span>🎙️</span> Atas Executivas de Reuniões & Síntese de Áudio
+                    </h4>
+                    <p className="text-xs text-emerald-900 leading-relaxed">
+                      Transforme conversas com clientes, audiências ou reuniões internas em atas formais com divisão executiva de tarefas e prazos fatais.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">1. Gravação Direta pelo Navegador:</h5>
+                      <p className="text-xs text-slate-600">
+                        Clique no botão <strong>Gravar Áudio</strong>, autorize o microfone e inicie a reunião. Ao finalizar, clique em <strong>Parar</strong> e a gravação ficará pronta para envio imediato.
+                      </p>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">2. Upload de Arquivos de Áudio:</h5>
+                      <p className="text-xs text-slate-600">
+                        Aceita gravações externas em formatos <strong>.mp3, .m4a, .wav e .webm</strong> de até 150MB através do botão de anexo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                    <h5 className="font-bold text-slate-900 text-xs mb-1">Estrutura Entregue pela Ata:</h5>
+                    <p className="text-xs text-slate-600">
+                      Cabeçalho com presentes, resumo circunstanciado das deliberações, tabela de tarefas (*Action Items* com responsáveis nominais) e campo formal de assinaturas.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. ABA: MODELO TIMBRADO */}
+              {helpActiveTab === "timbrado" && (
+                <div className="space-y-4">
+                  <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4">
+                    <h4 className="font-bold text-amber-950 text-sm mb-1 flex items-center gap-2">
+                      <span>📄</span> Exportação com Identidade Visual do seu Escritório
+                    </h4>
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais da sua banca em todas as minutas baixadas.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">Como usar seu modelo timbrado:</h5>
+                      <ol className="list-decimal pl-4 space-y-1.5 text-xs text-slate-600">
+                        <li>Clique na opção <strong>Usar Modelo Timbrado (.docx)</strong> na barra inferior da caixa de texto.</li>
+                        <li>Selecione um arquivo <strong>.docx</strong> que já possua seu cabeçalho, logo e rodapé pré-formatados.</li>
+                        <li>Ao clicar em <strong>Exportar .DOCX</strong>, o backend preservará toda a estrutura visual do seu arquivo e inserirá a minuta formatada no corpo do documento.</li>
+                      </ol>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">Exportação Padrão (Sem Timbrado):</h5>
+                      <p className="text-xs text-slate-600">
+                        Caso não envie um arquivo timbrado, o sistema exporta o documento no <strong>Padrão Forense ABNT</strong> (margem superior/esquerda de 3cm, inferior/direita de 2cm, espaçamento 1.5 e fonte Times New Roman).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. ABA: PLANOS & COTAS */}
+              {helpActiveTab === "seguranca" && (
+                <div className="space-y-4">
+                  <div className="bg-slate-100 border border-slate-200 rounded-xl p-4">
+                    <h4 className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-2">
+                      <span>💳</span> Gestão de Assinatura, Cotas e Privacidade
+                    </h4>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Acompanhe o consumo mensal do seu plano e mantenha seus dados em conformidade com a LGPD.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">Renovação de Cota:</h5>
+                      <p className="text-xs text-slate-600">
+                        O limite de documentos é renovado automaticamente a cada 30 dias no primeiro dia de cada mês civil. O consumo em tempo real pode ser visualizado na barra inferior esquerda da barra lateral.
+                      </p>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">Sigilo & LGPD:</h5>
+                      <p className="text-xs text-slate-600">
+                        Seus documentos e clientes são isolados por chave de segurança (RLS). Nenhuma informação processual confidencial é compartilhada com terceiros ou utilizada para treinamento público.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 hidden sm:inline">
+                Dúvidas técnicas adicionais? Contate o suporte do seu plano.
+              </span>
+              <button 
+                onClick={() => setShowHelpModal(false)} 
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow cursor-pointer ml-auto"
+              >
+                Entendi, fechar
+              </button>
+            </div>
+
           </div>
         </div>
       )}
