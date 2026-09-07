@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JurisPrime & AtaJur — Plataforma de IA Jurídica",
-  description: "Gestão inteligente de atas de reunião e elaboração de petições cíveis de 1º grau.",
+  title: "AvJuris.AI — Workstation Jurídica com IA Forense",
+  description: "Plataforma de inteligência jurídica para peticionamento de 1º grau, atas executivas e automação processual.",
 };
 
 export default function RootLayout({
