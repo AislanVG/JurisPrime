@@ -348,6 +348,7 @@ async def gerar_peticao_stream(
     verificar_e_consumir_cota(user_id=user_id, arquivos_bytes=arquivos_lidos)
 
     client = genai.Client(api_key=GEMINI_API_KEY)
+    
     user_parts = []
 
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
@@ -359,9 +360,10 @@ async def gerar_peticao_stream(
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_parts.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
-            user_parts.append(types.Part.from_text(f"[Documento Anexo: {filename}]"))
+            user_parts.append(types.Part.from_text(text=f"[Documento Anexo: {filename}]"))
 
-    user_parts.append(types.Part.from_text(instrucao_usuario))
+    # Argumento corrigido com text=
+    user_parts.append(types.Part.from_text(text=instrucao_usuario))
 
     async def stream_generator():
         conteudo_acumulado = []
