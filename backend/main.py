@@ -507,7 +507,7 @@ async def exportar_docx(
 
 @app.post("/api/ata/enviar-email")
 async def enviar_email_documento(payload: EmailDocumentoRequest):
-    """Envia o documento formatado em anexo .docx por e-mail via SMTP."""
+    """Envia o documento formatado em anexo .docx por e-mail via SMTP SSL."""
     if not SMTP_PASSWORD:
         raise HTTPException(
             status_code=500,
@@ -539,8 +539,13 @@ AvJuris.AI — Workstation Jurídica com IA Forense
         part.add_header("Content-Disposition", f'attachment; filename="{nome_arquivo}"')
         msg.attach(part)
 
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15)
-        server.starttls()
+        # Conexão SSL direta na porta 465 (Compatível com instâncias Render/Cloud)
+        if SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=20)
+        else:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20)
+            server.starttls()
+
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, payload.destinatario, msg.as_string())
         server.quit()
@@ -554,7 +559,7 @@ AvJuris.AI — Workstation Jurídica com IA Forense
 
 @app.post("/api/usuario/onboarding")
 async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
-    """Envia o e-mail de boas-vindas com template HTML quando o usuário cria conta ou faz login."""
+    """Envia o e-mail de boas-vindas via SMTP SSL."""
     if not SMTP_PASSWORD:
         return {"status": "ignorado", "motivo": "SMTP_PASSWORD ausente"}
 
@@ -568,61 +573,32 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
         <!DOCTYPE html>
         <html>
         <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
-          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-            
-            <div style="margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
-              <h2 style="color: #0b132b; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
-                AVJURIS<span style="color: #38bdf8;">.AI</span>
-              </h2>
-              <p style="color: #64748b; font-size: 11px; margin: 2px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
-                Workstation Jurídica com IA Forense
-              </p>
+        <body style="font-family: Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
+          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 36px;">
+            <h2 style="color: #0b132b; margin: 0;">AVJURIS<span style="color: #38bdf8;">.AI</span></h2>
+            <p style="color: #64748b; font-size: 11px;">Workstation Jurídica com IA Forense</p>
+            <h3 style="color: #0f172a; margin-top: 16px;">Olá, {payload.nome}! Boas-vindas.</h3>
+            <p style="color: #334155; font-size: 14px; line-height: 1.6;">Sua conta foi ativada com sucesso.</p>
+            <div style="text-align: center; margin: 28px 0;">
+              <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 13px; display: inline-block;">Acessar a Workstation</a>
             </div>
-            
-            <h3 style="color: #0f172a; font-size: 18px; margin: 0 0 12px 0;">Olá, {payload.nome}! Boas-vindas.</h3>
-            
-            <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 18px 0;">
-              Sua conta foi ativada com sucesso. O <strong>AvJuris.AI</strong> é a sua estação de trabalho forense projetada para elevar a velocidade e o rigor dogmático de peças processuais e atas executivas.
-            </p>
-            
-            <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; border-radius: 6px; padding: 14px 18px; margin: 20px 0;">
-              <p style="color: #0f172a; font-size: 13px; margin: 0 0 8px 0; font-weight: 700;">Recursos disponíveis no seu plano:</p>
-              <ul style="color: #475569; font-size: 13px; margin: 0; padding-left: 18px; line-height: 1.6;">
-                <li><strong>Petições de 1º Grau:</strong> Redação completa com fatos, fundamentos, teses e rol de pedidos.</li>
-                <li><strong>Conexão CNJ / DataJud:</strong> Identificação e endereçamento automático pelo número do processo.</li>
-                <li><strong>Módulo AtaJur:</strong> Transcrição e extração de matriz de prazos a partir de gravações de voz.</li>
-                <li><strong>Exportação Timbrada:</strong> Aplicação direta no modelo institucional (.docx) do seu escritório.</li>
-              </ul>
-            </div>
-            
-            <div style="text-align: center; margin: 28px 0 20px 0;">
-              <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
-                Acessar a Workstation ➔
-              </a>
-            </div>
-            
-            <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 28px 0 16px 0;" />
-            <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.4;">
-              Atenciosamente,<br>
-              <strong>Equipe AvJuris.AI</strong><br>
-              Suporte: avjurisia@gmail.com
-            </p>
           </div>
         </body>
         </html>
         """
-
         msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15)
-        server.starttls()
+        if SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=20)
+        else:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20)
+            server.starttls()
+
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, payload.destinatario, msg.as_string())
         server.quit()
 
         return {"status": "sucesso", "mensagem": "E-mail de boas-vindas enviado com sucesso!"}
-
     except Exception as e:
         print(f"Erro no envio de boas-vindas: {str(e)}")
         return {"status": "erro", "detalhes": str(e)}
