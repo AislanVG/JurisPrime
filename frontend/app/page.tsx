@@ -28,7 +28,8 @@ import {
   FileCheck2,
   Search,
   BookMarked,
-  Cpu
+  Cpu,
+  Command
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -49,8 +50,47 @@ interface StatusPlano {
   maximo: number;
 }
 
+interface TemplateAtalho {
+  comando: string;
+  titulo: string;
+  descricao: string;
+  prompt: string;
+}
+
+const TEMPLATES_ATALHOS: TemplateAtalho[] = [
+  {
+    comando: "/inicial",
+    titulo: "Petição Inicial Cível",
+    descricao: "Estrutura completa com qualificação, fatos, fundamentos e rol de pedidos.",
+    prompt: "Elabore uma Petição Inicial Cível de 1º Grau completa com tutela de urgência inaudita altera parte, qualificação, dos fatos, fundamentos com base no Código Civil e CPC, e rol minucioso de pedidos."
+  },
+  {
+    comando: "/agravo",
+    titulo: "Agravo de Instrumento",
+    descricao: "Recurso com folha de rosto, cabimento (art. 1.015 CPC) e efeito suspensivo.",
+    prompt: "Elabore Agravo de Instrumento com razões recursais, preparo, demonstração de cabimento no art. 1.015 do CPC / Tema 988 STJ, impugnação dialética e pedido de efeito suspensivo ativo."
+  },
+  {
+    comando: "/contestacao",
+    titulo: "Contestação c/ Preliminares",
+    descricao: "Defesa com impugnações preliminares (art. 337 CPC) e mérito exaustivo.",
+    prompt: "Elabore Contestação cível estruturada com preliminares de mérito (inépcia, ilegitimidade, falta de interesse de agir), impugnação específica aos fatos e teses de improcedência total."
+  },
+  {
+    comando: "/embargos",
+    titulo: "Embargos de Declaração",
+    descricao: "Peça voltada a suprir omissão, obscuridade, contradição ou erro material.",
+    prompt: "Elabore Embargos de Declaração com fundamento no art. 1.022 do CPC, apontando expressamente o ponto omisso e contraditório da decisão agravada/embargada com efeitos infringentes."
+  },
+  {
+    comando: "/ata",
+    titulo: "Ata Executiva Estruturada",
+    descricao: "Síntese de reunião com matriz de responsabilidades e prazos fatais.",
+    prompt: "Gere uma Ata Executiva Formal estruturada contendo participantes, cabeçalho, deliberações em tópicos, tabela de action items (tarefas, prazos fatais, responsáveis) e campo de assinaturas."
+  }
+];
+
 export default function Home() {
-  // --- ESTADO DE AUTENTICAÇÃO ---
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
@@ -60,20 +100,21 @@ export default function Home() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // --- MODAL DE AJUDA & ABAS ---
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpActiveTab, setHelpActiveTab] = useState<"peticoes" | "datajud" | "atajur" | "timbrado" | "seguranca">("peticoes");
 
-  // --- SELETOR DE MÓDULO (PETIÇÃO OU ATA) ---
   const [moduloSelecionado, setModuloSelecionado] = useState<"peticao" | "ata">("peticao");
-
-  // --- ESTADOS DE ENTRADA / FORMULÁRIO ---
   const [instrucao, setInstrucao] = useState("");
   const [tribunal, setTribunal] = useState("tjms");
   const [tipoReuniao, setTipoReuniao] = useState<"Cliente" | "Interna">("Cliente");
   const [participantes, setParticipantes] = useState("");
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [arquivoTimbrado, setArquivoTimbrado] = useState<File | null>(null);
+
+  // Menu de Atalhos (/)
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashSearch, setSlashSearch] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Áudio
   const [isRecording, setIsRecording] = useState(false);
@@ -84,7 +125,7 @@ export default function Home() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Geração, Edição e Feedback
+  // Geração e Feedback
   const [gerando, setGerando] = useState(false);
   const [gerandoTempo, setGerandoTempo] = useState(0);
   const [resultadoTexto, setResultadoTexto] = useState("");
@@ -93,7 +134,9 @@ export default function Home() {
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [statusEmail, setStatusEmail] = useState<string | null>(null);
 
-  // Cronômetro do Reasoning/Thinking
+  const [historicoCasos, setHistoricoCasos] = useState<DocumentoHistorico[]>([]);
+  const [statusPlano, setStatusPlano] = useState<StatusPlano>({ plano: "Básico", usados: 0, maximo: 15 });
+
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (gerando) {
@@ -109,11 +152,6 @@ export default function Home() {
     };
   }, [gerando]);
 
-  // --- DADOS REAIS DO SUPABASE ---
-  const [historicoCasos, setHistoricoCasos] = useState<DocumentoHistorico[]>([]);
-  const [statusPlano, setStatusPlano] = useState<StatusPlano>({ plano: "Básico", usados: 0, maximo: 15 });
-
-  // Carregar histórico e status da cota
   const carregarDadosUsuario = async (userId: string) => {
     try {
       const [resDocs, resStatus] = await Promise.all([
@@ -162,6 +200,31 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInstrucao(val);
+
+    const match = val.match(/\/([a-zA-Z0-9]*)$/);
+    if (match) {
+      setShowSlashMenu(true);
+      setSlashSearch(match[1].toLowerCase());
+    } else {
+      setShowSlashMenu(false);
+    }
+  };
+
+  const handleSelectTemplate = (template: TemplateAtalho) => {
+    const novoTexto = instrucao.replace(/\/([a-zA-Z0-9]*)$/, template.prompt);
+    setInstrucao(novoTexto);
+    setShowSlashMenu(false);
+    if (template.comando === "/ata") {
+      setModuloSelecionado("ata");
+    } else {
+      setModuloSelecionado("peticao");
+    }
+    textareaRef.current?.focus();
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -303,6 +366,7 @@ export default function Home() {
     handleClearAudio();
     setResultadoTexto("");
     setStatusEmail(null);
+    setShowSlashMenu(false);
   };
 
   const handleAbrirDocumentoSalvo = (doc: DocumentoHistorico) => {
@@ -319,6 +383,7 @@ export default function Home() {
   };
 
   const handleExecutarIA = async () => {
+    setShowSlashMenu(false);
     if (moduloSelecionado === "ata") {
       if (!audioBlob && arquivos.length === 0) {
         alert("Grave um áudio no microfone ou anexe um arquivo de áudio.");
@@ -483,6 +548,10 @@ export default function Home() {
     }
   };
 
+  const atalhosFiltrados = TEMPLATES_ATALHOS.filter(
+    t => t.comando.includes(slashSearch) || t.titulo.toLowerCase().includes(slashSearch)
+  );
+
   if (loadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0B132B]">
@@ -491,14 +560,10 @@ export default function Home() {
     );
   }
 
-  // =========================================================================
-  // 1. TELA DE LOGIN
-  // =========================================================================
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0B132B] flex items-center justify-center px-4 sm:px-6">
         <div className="w-full max-w-[1050px] grid grid-cols-1 lg:grid-cols-[1.1fr_0.1fr_1.2fr] gap-6 items-center">
-          
           <div className="w-full max-w-[400px] mx-auto bg-[#0F172A] p-8 rounded-2xl border border-white/10 shadow-2xl text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
               <Scale className="w-7 h-7 text-[#38BDF8]" />
@@ -617,23 +682,16 @@ export default function Home() {
               </div>
             </div>
           </div>
-
         </div>
       </div>
     );
   }
 
-  // =========================================================================
-  // 2. WORKSTATION AVJURIS (DASHBOARD PRINCIPAL)
-  // =========================================================================
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800">
-      
-      {/* SIDEBAR LATERAL (DARK) */}
+      {/* SIDEBAR LATERAL */}
       <aside className="w-64 bg-[#0B132B] border-r border-slate-800 flex flex-col justify-between shrink-0 hidden md:flex">
         <div className="p-4 space-y-6">
-          
-          {/* Marca Única AvJuris */}
           <div className="flex items-center gap-2.5 px-2">
             <div className="p-2 bg-blue-600 rounded-lg text-white">
               <Scale className="w-5 h-5" />
@@ -646,7 +704,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Botão + Novo Atendimento */}
           <button
             onClick={handleNovoAtendimento}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-600/30 cursor-pointer"
@@ -655,7 +712,6 @@ export default function Home() {
             <span>Nova Minuta / Conversa</span>
           </button>
 
-          {/* Seção Meus Casos (Carregados do Supabase) */}
           <div className="space-y-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2">
               Meus Casos ({historicoCasos.length})
@@ -682,7 +738,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Rodapé da Sidebar (Cota Real Sincronizada) */}
         <div className="p-4 border-t border-slate-800 space-y-4">
           <div className="bg-[#0F172A] p-3 rounded-xl border border-white/5 space-y-2">
             <div className="flex justify-between text-[11px] text-slate-300 font-semibold">
@@ -721,8 +776,6 @@ export default function Home() {
 
       {/* CANVAS CENTRAL */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        
-        {/* HEADER SUPERIOR */}
         <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
@@ -779,10 +832,8 @@ export default function Home() {
         {/* CORPO DO STUDIO */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col">
           {!resultadoTexto && !gerando ? (
-            
             <div className="max-w-3xl w-full mx-auto my-auto flex flex-col items-center text-center space-y-6">
               
-              {/* Banner CNJ se for Petição */}
               {moduloSelecionado === "peticao" && (
                 <div className="w-full bg-blue-50/80 border border-blue-200/70 p-4 rounded-2xl flex items-center justify-between text-left">
                   <div className="flex items-center gap-3">
@@ -804,7 +855,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Saudação */}
               <div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   {getGreeting()}, <span className="uppercase text-blue-600">{getUserName()}</span>.
@@ -814,7 +864,7 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Sugestões Rápidas */}
+              {/* Chips Preditivos / Sugestões Rápidas */}
               <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl">
                 {moduloSelecionado === "peticao" ? (
                   <>
@@ -861,10 +911,39 @@ export default function Home() {
                 )}
               </div>
 
-              {/* PROMPT BOX UNIFICADA */}
-              <div className="w-full bg-white border-2 border-slate-200 hover:border-blue-400 focus-within:border-blue-600 rounded-2xl p-4 shadow-lg transition duration-200 text-left">
+              {/* Caixa de Entrada com Menu de Atalhos (/) */}
+              <div className="w-full relative bg-white border-2 border-slate-200 hover:border-blue-400 focus-within:border-blue-600 rounded-2xl p-4 shadow-lg transition duration-200 text-left">
                 
-                {/* Opções Superiores da Caixa */}
+                {/* Menu Flutuante de Comandos (Slash Menu) */}
+                {showSlashMenu && (
+                  <div className="absolute left-4 bottom-[calc(100%+8px)] w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <div className="p-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
+                      <Command className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Modelos e Templates Forenses</span>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto p-1.5 space-y-1">
+                      {atalhosFiltrados.length === 0 ? (
+                        <p className="text-xs text-slate-400 p-2">Nenhum atalho encontrado</p>
+                      ) : (
+                        atalhosFiltrados.map((item) => (
+                          <button
+                            key={item.comando}
+                            type="button"
+                            onClick={() => handleSelectTemplate(item)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-blue-50 transition cursor-pointer group"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-xs text-slate-900 group-hover:text-blue-700">{item.titulo}</span>
+                              <span className="font-mono text-[10px] text-blue-600 bg-blue-100/60 px-1.5 py-0.5 rounded">{item.comando}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{item.descricao}</p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 text-xs">
                   {moduloSelecionado === "ata" ? (
                     <div className="flex items-center space-x-2">
@@ -902,7 +981,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Microfone */}
                   <div className="flex items-center space-x-2">
                     {!isRecording ? (
                       <button
@@ -926,7 +1004,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Player de Áudio */}
                 {audioUrl && (
                   <div className="p-2 mb-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                     <audio src={audioUrl} controls className="h-7 w-full max-w-[320px]" />
@@ -940,20 +1017,19 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Campo de Texto */}
                 <textarea
+                  ref={textareaRef}
                   rows={4}
                   value={instrucao}
-                  onChange={(e) => setInstrucao(e.target.value)}
+                  onChange={handleInputChange}
                   placeholder={
                     moduloSelecionado === "ata"
-                      ? "Informe a pauta da reunião ou os participantes..."
-                      : "Descreva a pretensão do cliente, conduta ilícita, valores e pedidos liminares..."
+                      ? "Informe a pauta ou digite '/' para templates rápidos..."
+                      : "Descreva a pretensão, fatos ou digite '/' para templates processuais..."
                   }
                   className="w-full text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none bg-transparent"
                 />
 
-                {/* Badges de Arquivos & Modelo Timbrado */}
                 <div className="flex flex-wrap gap-2 pt-2 pb-1 border-t border-slate-100">
                   {arquivoTimbrado && (
                     <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg text-[11px] text-blue-700 font-semibold">
@@ -976,7 +1052,6 @@ export default function Home() {
                   ))}
                 </div>
 
-                {/* Barra Inferior */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-2">
                   <div className="flex items-center space-x-2 sm:space-x-3">
                     <label className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-800 cursor-pointer p-1.5 rounded-lg hover:bg-slate-100 transition">
@@ -1012,20 +1087,14 @@ export default function Home() {
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
-
               </div>
 
               <p className="text-[11px] text-slate-400">
                 A IA pode cometer erros. Sempre revise as minutas antes do protocolo judicial.
               </p>
             </div>
-
           ) : (
-
-            /* WORKSTATION FORENSE / SPLIT VIEW COM EDITOR DIRETO */
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch">
-              
-              {/* Painel Esquerdo */}
               <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -1048,7 +1117,6 @@ export default function Home() {
                     className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
 
-                  {/* Modelo Timbrado Ativo */}
                   {arquivoTimbrado && (
                     <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-800">
                       <div className="flex items-center gap-2 truncate">
@@ -1086,7 +1154,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Painel Direito (Editor Estilo Folha Forense A4 + Reasoning Steps) */}
               <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto">
                 <div>
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
@@ -1131,13 +1198,8 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* =========================================================================
-                      PAINEL DE REASONING / PENSAMENTO & PESQUISA FORENSE ESTILO MINUTA IA
-                  ========================================================================== */}
                   {gerando && (
                     <div className="mb-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-4.5 space-y-3.5 shadow-sm animate-in fade-in duration-300">
-                      
-                      {/* 1. Header de Status de Pensamento */}
                       <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-600">
@@ -1162,7 +1224,6 @@ export default function Home() {
                         </span>
                       </div>
 
-                      {/* 2. Pesquisa Jurídica & Fontes Identificadas */}
                       <div className="bg-white border border-slate-200/80 rounded-xl p-3 text-xs space-y-2">
                         <div className="flex items-center justify-between text-slate-600 font-semibold text-[11px]">
                           <span className="flex items-center gap-1.5">
@@ -1180,7 +1241,6 @@ export default function Home() {
                         </p>
                       </div>
 
-                      {/* 3. Badges de Habilidades Aplicadas */}
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
                         <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 mr-1">
                           <BookMarked className="w-3 h-3 text-slate-400" />
@@ -1199,7 +1259,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Editor / Visualizador da Folha Forense */}
                   <div className="relative">
                     <textarea
                       rows={gerando ? 12 : 18}
@@ -1211,7 +1270,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Disparo por E-mail */}
                 {resultadoTexto && (
                   <div className="border-t border-slate-100 pt-4 mt-4 flex items-center justify-between gap-4">
                     <div className="flex-1 flex space-x-2">
@@ -1234,20 +1292,14 @@ export default function Home() {
                   </div>
                 )}
               </div>
-
             </div>
           )}
         </main>
       </div>
 
-      {/* =====================================================================
-          MODAL DE AJUDA & MANUAL OPERACIONAL AVANÇADO (COM ABAS)
-      ====================================================================== */}
       {showHelpModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-            
-            {/* Cabeçalho do Modal */}
             <div className="px-6 py-4 bg-[#0B132B] text-white flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-600/30 border border-blue-500/30 rounded-lg text-[#38BDF8]">
@@ -1266,62 +1318,47 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Menu de Abas / Categorias */}
             <div className="flex border-b border-slate-200 bg-slate-50 px-6 gap-2 sm:gap-4 overflow-x-auto text-xs font-semibold text-slate-600 shrink-0">
               <button
                 onClick={() => setHelpActiveTab("peticoes")}
                 className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  helpActiveTab === "peticoes" 
-                    ? "border-blue-600 text-blue-600 font-bold" 
-                    : "border-transparent hover:text-slate-900"
+                  helpActiveTab === "peticoes" ? "border-blue-600 text-blue-600 font-bold" : "border-transparent hover:text-slate-900"
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Petições & Peças</span>
               </button>
-
               <button
                 onClick={() => setHelpActiveTab("datajud")}
                 className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  helpActiveTab === "datajud" 
-                    ? "border-blue-600 text-blue-600 font-bold" 
-                    : "border-transparent hover:text-slate-900"
+                  helpActiveTab === "datajud" ? "border-blue-600 text-blue-600 font-bold" : "border-transparent hover:text-slate-900"
                 }`}
               >
                 <Building className="w-3.5 h-3.5" />
                 <span>Conexão DataJud</span>
               </button>
-
               <button
                 onClick={() => setHelpActiveTab("atajur")}
                 className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  helpActiveTab === "atajur" 
-                    ? "border-blue-600 text-blue-600 font-bold" 
-                    : "border-transparent hover:text-slate-900"
+                  helpActiveTab === "atajur" ? "border-blue-600 text-blue-600 font-bold" : "border-transparent hover:text-slate-900"
                 }`}
               >
                 <Mic className="w-3.5 h-3.5" />
                 <span>Atas & Áudios</span>
               </button>
-
               <button
                 onClick={() => setHelpActiveTab("timbrado")}
                 className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  helpActiveTab === "timbrado" 
-                    ? "border-blue-600 text-blue-600 font-bold" 
-                    : "border-transparent hover:text-slate-900"
+                  helpActiveTab === "timbrado" ? "border-blue-600 text-blue-600 font-bold" : "border-transparent hover:text-slate-900"
                 }`}
               >
                 <FileCheck2 className="w-3.5 h-3.5" />
                 <span>Modelo Timbrado</span>
               </button>
-
               <button
                 onClick={() => setHelpActiveTab("seguranca")}
                 className={`py-3.5 border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  helpActiveTab === "seguranca" 
-                    ? "border-blue-600 text-blue-600 font-bold" 
-                    : "border-transparent hover:text-slate-900"
+                  helpActiveTab === "seguranca" ? "border-blue-600 text-blue-600 font-bold" : "border-transparent hover:text-slate-900"
                 }`}
               >
                 <Scale className="w-3.5 h-3.5" />
@@ -1329,10 +1366,7 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Conteúdo Dinâmico da Aba Selecionada */}
             <div className="p-6 sm:p-8 space-y-6 text-slate-700 overflow-y-auto flex-1 text-xs sm:text-sm leading-relaxed">
-              
-              {/* 1. ABA: PETIÇÕES & PEÇAS */}
               {helpActiveTab === "peticoes" && (
                 <div className="space-y-4">
                   <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4">
@@ -1343,7 +1377,6 @@ export default function Home() {
                       O motor jurídico do AvJuris é treinado no Direito brasileiro e analisa a legislação (CPC, Código Civil, CDC, etc.) com teses estruturadas prontas para protocolo.
                     </p>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                       <h5 className="font-bold text-slate-900 mb-1">Como fornecer boas instruções:</h5>
@@ -1353,7 +1386,6 @@ export default function Home() {
                         <li>Se houver urgência, solicite expressamente a <strong>Tutela de Urgência (Art. 300 CPC)</strong>.</li>
                       </ul>
                     </div>
-
                     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                       <h5 className="font-bold text-slate-900 mb-1">Anexo de Autos em PDF:</h5>
                       <ul className="list-disc pl-4 space-y-1 text-xs text-slate-600">
@@ -1366,7 +1398,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* 2. ABA: CONEXÃO DATAJUD */}
               {helpActiveTab === "datajud" && (
                 <div className="space-y-4">
                   <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-4">
@@ -1377,7 +1408,6 @@ export default function Home() {
                       O AvJuris conecta-se à API Pública do Conselho Nacional de Justiça para buscar dados processuais oficiais sem necessidade de preenchimento manual.
                     </p>
                   </div>
-
                   <div className="space-y-3">
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Formato do Número CNJ:</h5>
@@ -1388,18 +1418,10 @@ export default function Home() {
                         O sistema identifica a comarca, classe processual, vara competente e assuntos cadastrados, aplicando o endereçamento correto na petição.
                       </p>
                     </div>
-
-                    <div className="border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-bold text-slate-900 text-xs mb-1">Tribunais Habilitados:</h5>
-                      <p className="text-xs text-slate-600">
-                        TJMS, TJSP, TJMT, TJDFT, TRF3 e TRF1 (com expansão contínua para outros tribunais estaduais e federais).
-                      </p>
-                    </div>
                   </div>
                 </div>
               )}
 
-              {/* 3. ABA: ATAS & ÁUDIOS */}
               {helpActiveTab === "atajur" && (
                 <div className="space-y-4">
                   <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4">
@@ -1410,7 +1432,6 @@ export default function Home() {
                       Transforme conversas com clientes, audiências ou reuniões internas em atas formais com divisão executiva de tarefas e prazos fatais.
                     </p>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">1. Gravação Direta pelo Navegador:</h5>
@@ -1418,7 +1439,6 @@ export default function Home() {
                         Clique no botão <strong>Gravar Áudio</strong>, autorize o microfone e inicie a reunião. Ao finalizar, clique em <strong>Parar</strong> e a gravação ficará pronta para envio imediato.
                       </p>
                     </div>
-
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">2. Upload de Arquivos de Áudio:</h5>
                       <p className="text-xs text-slate-600">
@@ -1426,17 +1446,9 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
-
-                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                    <h5 className="font-bold text-slate-900 text-xs mb-1">Estrutura Entregue pela Ata:</h5>
-                    <p className="text-xs text-slate-600">
-                      Cabeçalho com presentes, resumo circunstanciado das deliberações, tabela de tarefas (*Action Items* com responsáveis nominais) e campo formal de assinaturas.
-                    </p>
-                  </div>
                 </div>
               )}
 
-              {/* 4. ABA: MODELO TIMBRADO */}
               {helpActiveTab === "timbrado" && (
                 <div className="space-y-4">
                   <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4">
@@ -1447,28 +1459,17 @@ export default function Home() {
                       Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais da sua banca em todas as minutas baixadas.
                     </p>
                   </div>
-
-                  <div className="space-y-3">
-                    <div className="border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-bold text-slate-900 text-xs mb-1">Como usar seu modelo timbrado:</h5>
-                      <ol className="list-decimal pl-4 space-y-1.5 text-xs text-slate-600">
-                        <li>Clique na opção <strong>Usar Modelo Timbrado (.docx)</strong> na barra inferior da caixa de texto.</li>
-                        <li>Selecione um arquivo <strong>.docx</strong> que já possua seu cabeçalho, logo e rodapé pré-formatados.</li>
-                        <li>Ao clicar em <strong>Exportar .DOCX</strong>, o backend preservará toda a estrutura visual do seu arquivo e inserirá a minuta formatada no corpo do documento.</li>
-                      </ol>
-                    </div>
-
-                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                      <h5 className="font-bold text-slate-900 text-xs mb-1">Exportação Padrão (Sem Timbrado):</h5>
-                      <p className="text-xs text-slate-600">
-                        Caso não envie um arquivo timbrado, o sistema exporta o documento no <strong>Padrão Forense ABNT</strong> (margem superior/esquerda de 3cm, inferior/direita de 2cm, espaçamento 1.5 e fonte Times New Roman).
-                      </p>
-                    </div>
+                  <div className="border border-slate-200 rounded-xl p-4">
+                    <h5 className="font-bold text-slate-900 text-xs mb-1">Como usar seu modelo timbrado:</h5>
+                    <ol className="list-decimal pl-4 space-y-1.5 text-xs text-slate-600">
+                      <li>Clique na opção <strong>Usar Modelo Timbrado (.docx)</strong> na barra inferior da caixa de texto.</li>
+                      <li>Selecione um arquivo <strong>.docx</strong> que já possua seu cabeçalho, logo e rodapé pré-formatados.</li>
+                      <li>Ao clicar em <strong>Exportar .DOCX</strong>, o backend preservará toda a estrutura visual do seu arquivo e inserirá a minuta formatada no corpo do documento.</li>
+                    </ol>
                   </div>
                 </div>
               )}
 
-              {/* 5. ABA: PLANOS & COTAS */}
               {helpActiveTab === "seguranca" && (
                 <div className="space-y-4">
                   <div className="bg-slate-100 border border-slate-200 rounded-xl p-4">
@@ -1479,15 +1480,13 @@ export default function Home() {
                       Acompanhe o consumo mensal do seu plano e mantenha seus dados em conformidade com a LGPD.
                     </p>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Renovação de Cota:</h5>
                       <p className="text-xs text-slate-600">
-                        O limite de documentos é renovado automaticamente a cada 30 dias no primeiro dia de cada mês civil. O consumo em tempo real pode ser visualizado na barra inferior esquerda da barra lateral.
+                        O limite de documentos é renovado automaticamente a cada 30 dias no primeiro dia de cada mês civil.
                       </p>
                     </div>
-
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Sigilo & LGPD:</h5>
                       <p className="text-xs text-slate-600">
@@ -1497,10 +1496,8 @@ export default function Home() {
                   </div>
                 </div>
               )}
-
             </div>
 
-            {/* Rodapé do Modal */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
               <span className="text-[11px] text-slate-500 hidden sm:inline">
                 Dúvidas técnicas adicionais? Contate o suporte do seu plano.
@@ -1512,11 +1509,9 @@ export default function Home() {
                 Entendi, fechar
               </button>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }
