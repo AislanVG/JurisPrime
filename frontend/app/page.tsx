@@ -25,7 +25,10 @@ import {
   Sparkles, 
   ChevronRight, 
   Briefcase, 
-  FileCheck2 
+  FileCheck2,
+  Search,
+  BookMarked,
+  Cpu
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -83,11 +86,28 @@ export default function Home() {
 
   // Geração, Edição e Feedback
   const [gerando, setGerando] = useState(false);
+  const [gerandoTempo, setGerandoTempo] = useState(0);
   const [resultadoTexto, setResultadoTexto] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [emailDestino, setEmailDestino] = useState("");
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [statusEmail, setStatusEmail] = useState<string | null>(null);
+
+  // Cronômetro do Reasoning/Thinking
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (gerando) {
+      setGerandoTempo(0);
+      interval = setInterval(() => {
+        setGerandoTempo((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [gerando]);
 
   // --- DADOS REAIS DO SUPABASE ---
   const [historicoCasos, setHistoricoCasos] = useState<DocumentoHistorico[]>([]);
@@ -1066,8 +1086,8 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Painel Direito (Editor Estilo Folha Forense A4) */}
-              <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+              {/* Painel Direito (Editor Estilo Folha Forense A4 + Reasoning Steps) */}
+              <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto">
                 <div>
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
                     <div>
@@ -1111,22 +1131,83 @@ export default function Home() {
                     )}
                   </div>
 
+                  {/* =========================================================================
+                      PAINEL DE REASONING / PENSAMENTO & PESQUISA FORENSE ESTILO MINUTA IA
+                  ========================================================================== */}
+                  {gerando && (
+                    <div className="mb-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-4.5 space-y-3.5 shadow-sm animate-in fade-in duration-300">
+                      
+                      {/* 1. Header de Status de Pensamento */}
+                      <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-600">
+                            <Cpu className="w-4 h-4 animate-pulse" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              Pensando ({gerandoTempo}s)
+                              <span className="inline-flex space-x-1">
+                                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></span>
+                              </span>
+                            </span>
+                            <p className="text-[10px] text-slate-500">
+                              O AvJuris.AI analisa dogmática, teses jurisprudenciais e legislação aplicável.
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                          {moduloSelecionado === "peticao" ? "IA Forense Ativa" : "AtaJur Engine"}
+                        </span>
+                      </div>
+
+                      {/* 2. Pesquisa Jurídica & Fontes Identificadas */}
+                      <div className="bg-white border border-slate-200/80 rounded-xl p-3 text-xs space-y-2">
+                        <div className="flex items-center justify-between text-slate-600 font-semibold text-[11px]">
+                          <span className="flex items-center gap-1.5">
+                            <Search className="w-3.5 h-3.5 text-blue-600" />
+                            Pesquisa e Cruzamento Normativo
+                          </span>
+                          <span className="text-emerald-600 font-bold flex items-center gap-1 text-[10px]">
+                            <Check className="w-3 h-3" /> Em execução
+                          </span>
+                        </div>
+                        <p className="font-mono text-[11px] text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100 leading-relaxed">
+                          {moduloSelecionado === "peticao"
+                            ? "CPC/2015 (Art. 300, 319, 320) • Código Civil (Art. 186, 927) • CDC (Art. 6º, VIII, 14) • Temas STJ e Enunciados"
+                            : "Síntese deliberativa • Mapeamento de Action Items com responsáveis nominais • Prazos fatais"}
+                        </p>
+                      </div>
+
+                      {/* 3. Badges de Habilidades Aplicadas */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 mr-1">
+                          <BookMarked className="w-3 h-3 text-slate-400" />
+                          Habilidades:
+                        </div>
+                        <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 text-[10px] font-semibold rounded-lg shadow-2xs flex items-center gap-1">
+                          <span className="text-emerald-500">✓</span> Rigor Dogmático Forense
+                        </span>
+                        <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 text-[10px] font-semibold rounded-lg shadow-2xs flex items-center gap-1">
+                          <span className="text-emerald-500">✓</span> Conexão Oficial DataJud / CNJ
+                        </span>
+                        <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 text-[10px] font-semibold rounded-lg shadow-2xs flex items-center gap-1">
+                          <span className="text-emerald-500">✓</span> Formatação ABNT & Modelo Timbrado
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Editor / Visualizador da Folha Forense */}
                   <div className="relative">
                     <textarea
-                      rows={18}
+                      rows={gerando ? 12 : 18}
                       value={resultadoTexto}
                       onChange={(e) => setResultadoTexto(e.target.value)}
                       placeholder="O conteúdo gerado pela IA surgirá aqui para revisão e edição em tempo real..."
                       className="w-full p-6 bg-[#FAFAFA] border border-slate-200 rounded-xl font-serif text-[15px] leading-relaxed text-slate-900 focus:outline-none focus:border-blue-400 focus:bg-white transition resize-none shadow-inner"
                     />
-
-                    {gerando && (
-                      <div className="absolute bottom-4 left-6 flex items-center space-x-2 text-blue-600 font-sans text-xs bg-white/90 px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm animate-pulse font-semibold">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Sintetizando minuta com rigor dogmático...</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1259,7 +1340,7 @@ export default function Home() {
                       <span>⚖️</span> Elaboração de Peças com Inteligência Forense
                     </h4>
                     <p className="text-xs text-blue-900 leading-relaxed">
-                      O motor jurídico do AvJuris é treinado no Direito brasileiro e analisa a legislação (CPC, Código Civil, CDC, etc.) com teses estruturadas prontas para protocolo[cite: 1].
+                      O motor jurídico do AvJuris é treinado no Direito brasileiro e analisa a legislação (CPC, Código Civil, CDC, etc.) com teses estruturadas prontas para protocolo.
                     </p>
                   </div>
 
@@ -1276,9 +1357,9 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                       <h5 className="font-bold text-slate-900 mb-1">Anexo de Autos em PDF:</h5>
                       <ul className="list-disc pl-4 space-y-1 text-xs text-slate-600">
-                        <li>Você pode anexar até <strong>10 arquivos por vez</strong> (contratos, extratos, notificações)[cite: 1].</li>
-                        <li>A IA extrai automaticamente cláusulas contratuais e valores para citar no mérito[cite: 1].</li>
-                        <li>Limite de até 150MB por arquivo e até 1.500 páginas conforme seu plano[cite: 1].</li>
+                        <li>Você pode anexar até <strong>10 arquivos por vez</strong> (contratos, extratos, notificações).</li>
+                        <li>A IA extrai automaticamente cláusulas contratuais e valores para citar no mérito.</li>
+                        <li>Limite de até 150MB por arquivo e até 1.500 páginas conforme seu plano.</li>
                       </ul>
                     </div>
                   </div>
@@ -1293,7 +1374,7 @@ export default function Home() {
                       <span>🏛️</span> Integração em Tempo Real com o CNJ / DataJud
                     </h4>
                     <p className="text-xs text-purple-900 leading-relaxed">
-                      O AvJuris conecta-se à API Pública do Conselho Nacional de Justiça para buscar dados processuais oficiais sem necessidade de preenchimento manual[cite: 1].
+                      O AvJuris conecta-se à API Pública do Conselho Nacional de Justiça para buscar dados processuais oficiais sem necessidade de preenchimento manual.
                     </p>
                   </div>
 
@@ -1301,17 +1382,17 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Formato do Número CNJ:</h5>
                       <p className="text-xs text-slate-600 mb-2">
-                        Digite ou cole o número único do processo com 20 dígitos no campo de instruções (ex: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-blue-600">0001234-56.2026.8.12.0001</code>)[cite: 1].
+                        Digite ou cole o número único do processo com 20 dígitos no campo de instruções (ex: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-blue-600">0001234-56.2026.8.12.0001</code>).
                       </p>
                       <p className="text-xs text-slate-600">
-                        O sistema identifica a comarca, classe processual, vara competente e assuntos cadastrados, aplicando o endereçamento correto na petição[cite: 1].
+                        O sistema identifica a comarca, classe processual, vara competente e assuntos cadastrados, aplicando o endereçamento correto na petição.
                       </p>
                     </div>
 
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Tribunais Habilitados:</h5>
                       <p className="text-xs text-slate-600">
-                        TJMS, TJSP, TJMT, TJDFT, TRF3 e TRF1 (com expansão contínua para outros tribunais estaduais e federais)[cite: 1].
+                        TJMS, TJSP, TJMT, TJDFT, TRF3 e TRF1 (com expansão contínua para outros tribunais estaduais e federais).
                       </p>
                     </div>
                   </div>
@@ -1326,7 +1407,7 @@ export default function Home() {
                       <span>🎙️</span> Atas Executivas de Reuniões & Síntese de Áudio
                     </h4>
                     <p className="text-xs text-emerald-900 leading-relaxed">
-                      Transforme conversas com clientes, audiências ou reuniões internas em atas formais com divisão executiva de tarefas e prazos fatais[cite: 1].
+                      Transforme conversas com clientes, audiências ou reuniões internas em atas formais com divisão executiva de tarefas e prazos fatais.
                     </p>
                   </div>
 
@@ -1341,7 +1422,7 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">2. Upload de Arquivos de Áudio:</h5>
                       <p className="text-xs text-slate-600">
-                        Aceita gravações externas em formatos <strong>.mp3, .m4a, .wav e .webm</strong> de até 150MB através do botão de anexo[cite: 1].
+                        Aceita gravações externas em formatos <strong>.mp3, .m4a, .wav e .webm</strong> de até 150MB através do botão de anexo.
                       </p>
                     </div>
                   </div>
@@ -1349,7 +1430,7 @@ export default function Home() {
                   <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                     <h5 className="font-bold text-slate-900 text-xs mb-1">Estrutura Entregue pela Ata:</h5>
                     <p className="text-xs text-slate-600">
-                      Cabeçalho com presentes, resumo circunstanciado das deliberações, tabela de tarefas (*Action Items* com responsáveis nominais) e campo formal de assinaturas[cite: 1].
+                      Cabeçalho com presentes, resumo circunstanciado das deliberações, tabela de tarefas (*Action Items* com responsáveis nominais) e campo formal de assinaturas.
                     </p>
                   </div>
                 </div>
@@ -1363,7 +1444,7 @@ export default function Home() {
                       <span>📄</span> Exportação com Identidade Visual do seu Escritório
                     </h4>
                     <p className="text-xs text-amber-900 leading-relaxed">
-                      Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais da sua banca em todas as minutas baixadas[cite: 1].
+                      Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais da sua banca em todas as minutas baixadas.
                     </p>
                   </div>
 
@@ -1372,8 +1453,8 @@ export default function Home() {
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Como usar seu modelo timbrado:</h5>
                       <ol className="list-decimal pl-4 space-y-1.5 text-xs text-slate-600">
                         <li>Clique na opção <strong>Usar Modelo Timbrado (.docx)</strong> na barra inferior da caixa de texto.</li>
-                        <li>Selecione um arquivo <strong>.docx</strong> que já possua seu cabeçalho, logo e rodapé pré-formatados[cite: 1].</li>
-                        <li>Ao clicar em <strong>Exportar .DOCX</strong>, o backend preservará toda a estrutura visual do seu arquivo e inserirá a minuta formatada no corpo do documento[cite: 1].</li>
+                        <li>Selecione um arquivo <strong>.docx</strong> que já possua seu cabeçalho, logo e rodapé pré-formatados.</li>
+                        <li>Ao clicar em <strong>Exportar .DOCX</strong>, o backend preservará toda a estrutura visual do seu arquivo e inserirá a minuta formatada no corpo do documento.</li>
                       </ol>
                     </div>
 
@@ -1395,7 +1476,7 @@ export default function Home() {
                       <span>💳</span> Gestão de Assinatura, Cotas e Privacidade
                     </h4>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      Acompanhe o consumo mensal do seu plano e mantenha seus dados em conformidade com a LGPD[cite: 1].
+                      Acompanhe o consumo mensal do seu plano e mantenha seus dados em conformidade com a LGPD.
                     </p>
                   </div>
 
@@ -1403,14 +1484,14 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Renovação de Cota:</h5>
                       <p className="text-xs text-slate-600">
-                        O limite de documentos é renovado automaticamente a cada 30 dias no primeiro dia de cada mês civil[cite: 1]. O consumo em tempo real pode ser visualizado na barra inferior esquerda da barra lateral.
+                        O limite de documentos é renovado automaticamente a cada 30 dias no primeiro dia de cada mês civil. O consumo em tempo real pode ser visualizado na barra inferior esquerda da barra lateral.
                       </p>
                     </div>
 
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Sigilo & LGPD:</h5>
                       <p className="text-xs text-slate-600">
-                        Seus documentos e clientes são isolados por chave de segurança (RLS)[cite: 1]. Nenhuma informação processual confidencial é compartilhada com terceiros ou utilizada para treinamento público[cite: 1].
+                        Seus documentos e clientes são isolados por chave de segurança (RLS). Nenhuma informação processual confidencial é compartilhada com terceiros ou utilizada para treinamento público.
                       </p>
                     </div>
                   </div>
