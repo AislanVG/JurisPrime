@@ -505,9 +505,9 @@ async def exportar_docx(
 # 6. ROTAS DE DISPARO SMTP (ANEXO DOCX E BOAS-VINDAS)
 # =====================================================================
 
-@app.post("/api/ata/enviar-email")
+@app.@app.post("/api/ata/enviar-email")
 async def enviar_email_documento(payload: EmailDocumentoRequest):
-    """Envia o documento formatado em anexo .docx por e-mail via SMTP SSL."""
+    """Envia o documento formatado em anexo .docx por e-mail via SMTP SSL (IPv4)."""
     if not SMTP_PASSWORD:
         raise HTTPException(
             status_code=500,
@@ -539,13 +539,12 @@ AvJuris.AI — Workstation Jurídica com IA Forense
         part.add_header("Content-Disposition", f'attachment; filename="{nome_arquivo}"')
         msg.attach(part)
 
-        # Conexão SSL direta na porta 465 (Compatível com instâncias Render/Cloud)
-        if SMTP_PORT == 465:
-            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=20)
-        else:
-            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20)
-            server.starttls()
+        # Força resolução estrita para IPv4 no Render
+        addr_info = socket.getaddrinfo("smtp.gmail.com", 465, socket.AF_INET, socket.SOCK_STREAM)
+        ipv4_address = addr_info[0][4][0]
 
+        server = smtplib.SMTP_SSL(ipv4_address, 465, timeout=20)
+        server.ehlo("gmail.com")
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, payload.destinatario, msg.as_string())
         server.quit()
@@ -559,7 +558,7 @@ AvJuris.AI — Workstation Jurídica com IA Forense
 
 @app.post("/api/usuario/onboarding")
 async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
-    """Envia o e-mail de boas-vindas via SMTP SSL."""
+    """Envia o e-mail de boas-vindas via SMTP SSL (IPv4)."""
     if not SMTP_PASSWORD:
         return {"status": "ignorado", "motivo": "SMTP_PASSWORD ausente"}
 
@@ -588,12 +587,11 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
         """
         msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-        if SMTP_PORT == 465:
-            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=20)
-        else:
-            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20)
-            server.starttls()
+        addr_info = socket.getaddrinfo("smtp.gmail.com", 465, socket.AF_INET, socket.SOCK_STREAM)
+        ipv4_address = addr_info[0][4][0]
 
+        server = smtplib.SMTP_SSL(ipv4_address, 465, timeout=20)
+        server.ehlo("gmail.com")
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(SMTP_USER, payload.destinatario, msg.as_string())
         server.quit()
