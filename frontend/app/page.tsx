@@ -560,29 +560,42 @@ export default function Home() {
     );
   }
 
+  // =========================================================================
+  // 1. TELA DE LOGIN PREMIUM & HERO FORENSE
+  // =========================================================================
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0B132B] flex items-center justify-center px-4 sm:px-6">
-        <div className="w-full max-w-[1050px] grid grid-cols-1 lg:grid-cols-[1.1fr_0.1fr_1.2fr] gap-6 items-center">
-          <div className="w-full max-w-[400px] mx-auto bg-[#0F172A] p-8 rounded-2xl border border-white/10 shadow-2xl text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Scale className="w-7 h-7 text-[#38BDF8]" />
-              <span className="text-2xl font-extrabold text-white tracking-tight">
+      <div className="min-h-screen bg-[#070D1E] relative flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
+        
+        {/* Glow de Fundo */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10 py-10">
+          
+          {/* PAINEL ESQUERDO: CARD DE AUTENTICAÇÃO */}
+          <div className="lg:col-span-5 w-full max-w-[430px] mx-auto bg-[#0D152A]/90 backdrop-blur-xl p-8 sm:p-9 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] text-center">
+            
+            <div className="flex items-center justify-center gap-2.5 mb-5">
+              <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 rounded-xl text-[#38BDF8]">
+                <Scale className="w-6 h-6" />
+              </div>
+              <span className="text-2xl font-black text-white tracking-tight">
                 AVJURIS<span className="text-[#38BDF8]">.AI</span>
               </span>
             </div>
 
-            <h1 className="text-white font-extrabold text-2xl leading-tight mb-2">
+            <h1 className="text-white font-extrabold text-2xl tracking-tight mb-1.5">
               Acesso à Plataforma
             </h1>
-            <p className="text-slate-400 text-xs mb-6">
-              Automação jurídica de alta performance com IA Forense.
+            <p className="text-slate-400 text-xs mb-7 leading-relaxed">
+              Estação de trabalho forense para bancas e advogados.
             </p>
 
             <button
               onClick={handleGoogleLogin}
               type="button"
-              className="w-full flex items-center justify-center gap-2.5 py-2.5 px-3 border border-white/15 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-white transition shadow-sm mb-4 cursor-pointer"
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-white/15 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-white transition-all shadow-sm mb-5 cursor-pointer hover:border-white/25"
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -590,30 +603,30 @@ export default function Home() {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
-              <span>Acessar com Google</span>
+              <span>Continuar com o Google</span>
             </button>
 
-            <div className="flex items-center w-full my-4 text-slate-500 text-[11px] lowercase">
+            <div className="flex items-center w-full my-5 text-slate-500 text-[11px]">
               <div className="flex-1 border-b border-white/10"></div>
-              <span className="px-3">ou credenciais</span>
+              <span className="px-3 uppercase font-semibold tracking-wider text-[10px] text-slate-400">ou e-mail profissional</span>
               <div className="flex-1 border-b border-white/10"></div>
             </div>
 
-            <form onSubmit={handleEmailAuth} className="w-full space-y-3.5 text-left">
+            <form onSubmit={handleEmailAuth} className="w-full space-y-4 text-left">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">E-mail</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">E-mail</label>
                 <input
                   type="email"
                   required
                   placeholder="advogado@escritorio.com.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#38BDF8] transition placeholder:text-slate-500"
+                  className="w-full px-3.5 py-2.5 bg-white/[0.03] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#38BDF8] focus:bg-white/[0.06] transition placeholder:text-slate-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Senha</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Senha</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -621,26 +634,34 @@ export default function Home() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#38BDF8] pr-10 transition placeholder:text-slate-500"
+                    className="w-full px-3.5 py-2.5 bg-white/[0.03] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#38BDF8] focus:bg-white/[0.06] pr-10 transition placeholder:text-slate-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-white cursor-pointer"
+                    className="absolute right-3 top-3 text-slate-400 hover:text-white cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              {authError && <p className="text-[11px] text-red-400">{authError}</p>}
+              {authError && (
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-[11px] text-red-400 text-center font-medium">
+                  {authError}
+                </div>
+              )}
 
               <button
                 type="submit"
                 disabled={authLoading}
-                className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs transition flex items-center justify-center space-x-2 mt-2 cursor-pointer shadow-lg shadow-blue-600/30"
+                className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl font-bold text-xs transition flex items-center justify-center space-x-2 mt-2 cursor-pointer shadow-lg shadow-blue-600/30 active:scale-[0.99]"
               >
-                {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{authMode === "login" ? "Entrar na Plataforma ➔" : "Cadastrar Conta ➔"}</span>}
+                {authLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>{authMode === "login" ? "Entrar na Workstation ➔" : "Criar Minha Conta ➔"}</span>
+                )}
               </button>
 
               <div className="text-center pt-2">
@@ -650,43 +671,96 @@ export default function Home() {
                     setAuthMode(authMode === "login" ? "register" : "login");
                     setAuthError(null);
                   }}
-                  className="text-[11px] text-slate-400 hover:text-[#38BDF8] transition cursor-pointer"
+                  className="text-[11px] text-slate-400 hover:text-[#38BDF8] transition cursor-pointer font-medium"
                 >
-                  {authMode === "login" ? "Novo por aqui? Crie sua conta" : "Já possui conta? Fazer login"}
+                  {authMode === "login" ? "Primeiro acesso? Cadastre-se gratuitamente" : "Já possui conta? Fazer login"}
                 </button>
               </div>
             </form>
           </div>
 
-          <div className="hidden lg:block"></div>
+          {/* PAINEL DIREITO: APRESENTAÇÃO INSTITUCIONAL & DIFERENCIAIS */}
+          <div className="lg:col-span-7 flex flex-col justify-center space-y-7 text-left lg:pl-6">
+            
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-500/10 border border-blue-500/20 text-[#38BDF8] text-xs font-bold rounded-full shadow-inner">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>IA Forense & Automação Processual</span>
+              </div>
+              
+              <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-black text-white leading-[1.15] tracking-tight">
+                A infraestrutura definitiva para <span className="bg-gradient-to-r from-blue-400 to-[#38BDF8] bg-clip-text text-transparent">advogados de alta performance</span>
+              </h2>
 
-          <div className="p-8 text-left space-y-6">
-            <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-[#38BDF8] text-xs font-bold rounded-full">
-              SaaS Jurídico de 2ª Geração
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
-              A infraestrutura definitiva para <span className="text-[#38BDF8]">advogados de elite</span>
-            </h2>
-            <div className="space-y-3 text-sm text-slate-300">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>Petições Iniciais completas com densidade forense</span>
+              <p className="text-slate-400 text-sm sm:text-base leading-relaxed max-w-xl">
+                Elabore peças processuais completas, consulte o CNJ/DataJud e transcreva atas de reuniões executivas mantendo o papel timbrado da sua banca.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
+                <div className="flex items-center gap-2 text-white font-bold text-xs">
+                  <FileText className="w-4 h-4 text-[#38BDF8]" />
+                  <span>Petições de 1º Grau</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  Fatos, fundamentos dogmáticos e pedidos liminares prontos para protocolo.
+                </p>
               </div>
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>Atas executivas com matriz de prazos e tarefas</span>
+
+              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
+                <div className="flex items-center gap-2 text-white font-bold text-xs">
+                  <Building className="w-4 h-4 text-emerald-400" />
+                  <span>Conexão CNJ / DataJud</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  Identificação automática de comarca, vara e classe pelo número do processo.
+                </p>
               </div>
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>Exportação com template timbrado (.docx) do seu escritório</span>
+
+              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
+                <div className="flex items-center gap-2 text-white font-bold text-xs">
+                  <Mic className="w-4 h-4 text-purple-400" />
+                  <span>Módulo AtaJur</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  Gravação de reuniões em atas executivas com matriz de prazos e responsáveis.
+                </p>
+              </div>
+
+              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
+                <div className="flex items-center gap-2 text-white font-bold text-xs">
+                  <FileCheck2 className="w-4 h-4 text-amber-400" />
+                  <span>Template Timbrado (.docx)</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  Exportação com a identidade visual, cabeçalho e rodapé do seu escritório.
+                </p>
               </div>
             </div>
+
+            <div className="flex items-center gap-6 pt-2 text-[11px] text-slate-500 border-t border-white/5">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Conforme à LGPD
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Criptografia AES-256
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Sem retenção pública
+              </span>
+            </div>
+
           </div>
+
         </div>
       </div>
     );
   }
 
+  // =========================================================================
+  // 2. WORKSTATION AVJURIS (DASHBOARD PRINCIPAL)
+  // =========================================================================
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800">
       {/* SIDEBAR LATERAL */}
