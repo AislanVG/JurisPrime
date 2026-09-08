@@ -317,6 +317,18 @@ async def obter_status_usuario(user_id: str):
         return {"plano": "Básico", "usados": 0, "maximo": 15, "erro": str(e)}
 
 
+@app.get("/api/documentos/{user_id}")
+async def listar_documentos_usuario(user_id: str):
+    """Lista o histórico de petições e atas criadas pelo usuário."""
+    if not supabase:
+        return []
+    try:
+        res = supabase.table("documentos").select("id, titulo, tipo, conteudo_markdown, instrucao_original, created_at").eq("user_id", user_id).order("created_at", desc=True).limit(30).execute()
+        return res.data or []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar documentos: {str(e)}")
+
+
 @app.post("/api/peticao/gerar-stream")
 async def gerar_peticao_stream(
     instrucao_usuario: str = Form(...),
@@ -338,19 +350,21 @@ async def gerar_peticao_stream(
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_parts = []
 
+    # Integração com DataJud/CNJ se houver numeração processual
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
-            user_parts.append(types.Part.from_text(text=dados_cnj))
+            user_parts.append(dados_cnj)
 
+    # Anexos em PDF
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_parts.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
-            user_parts.append(types.Part.from_text(text=f"[Documento Anexo: {filename}]"))
+            user_parts.append(f"[Documento Anexo: {filename}]")
 
-    # Correção do argumento text=
-    user_parts.append(types.Part.from_text(text=instrucao_usuario))
+    # Passa a instrução do usuário diretamente no array de parts
+    user_parts.append(instrucao_usuario)
 
     async def stream_generator():
         conteudo_acumulado = []
@@ -360,9 +374,15 @@ async def gerar_peticao_stream(
                 temperature=0.1,
                 max_output_tokens=8192
             )
+            
+            # Converte com segurança para types.Part sem disparar TypeError
+            parts_payload = [
+                p if isinstance(p, types.Part) else types.Part.from_text(text=p) for p in user_parts
+            ]
+
             response = client.models.generate_content_stream(
                 model="gemini-2.5-flash",
-                contents=[types.Content(role="user", parts=user_parts)],
+                contents=[types.Content(role="user", parts=parts_payload)],
                 config=config
             )
             for chunk in response:
@@ -397,6 +417,7 @@ async def gerar_peticao_stream(
             "X-Accel-Buffering": "no"
         }
     )
+
 
 @app.post("/api/ata/processar-audio")
 async def processar_audio_ata(
@@ -445,7 +466,7 @@ async def processar_audio_ata(
                     role="user",
                     parts=[
                         types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
-                        types.Part.from_text(prompt_contexto)
+                        types.Part.from_text(text=prompt_contexto)
                     ]
                 )
             ],
