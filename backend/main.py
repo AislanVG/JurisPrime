@@ -500,7 +500,7 @@ async def exportar_docx(
 
 @app.post("/api/ata/enviar-email")
 async def enviar_email_documento(payload: EmailDocumentoRequest):
-    """Envia o documento formatado em anexo .docx via API HTTP do Resend."""
+    """Envia o documento formatado em anexo .docx com layout forense corporativo via Resend."""
     if not RESEND_API_KEY:
         raise HTTPException(
             status_code=500,
@@ -517,21 +517,73 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
             "Authorization": f"Bearer {RESEND_API_KEY}",
             "Content-Type": "application/json"
         }
-        
+
+        html_email = f"""
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 16px;">
+          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 40px 36px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);">
+            
+            <!-- Marca / Header -->
+            <div style="text-align: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
+              <h1 style="color: #0b132b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">
+                AVJURIS<span style="color: #38bdf8;">.AI</span>
+              </h1>
+              <p style="color: #64748b; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.8px;">
+                Workstation Jurídica com IA Forense
+              </p>
+            </div>
+
+            <!-- Título Principal -->
+            <h2 style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
+              Documento Jurídico Finalizado
+            </h2>
+            
+            <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+              Prezado(a) Doutor(a), o seu documento <strong>{payload.titulo}</strong> foi compilado e estruturado conforme os padrões forenses da plataforma.
+            </p>
+
+            <!-- Card com Dados do Arquivo Anexado -->
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px;">
+                Arquivo Anexo (.DOCX)
+              </div>
+              <div style="font-size: 13px; color: #1e293b; font-weight: 600; word-break: break-all;">
+                📄 {nome_arquivo}
+              </div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">
+                Compatível com Microsoft Word, Google Docs e editores padrão.
+              </div>
+            </div>
+
+            <!-- CTA / Acesso à Workstation -->
+            <div style="text-align: center; margin: 28px 0 24px 0;">
+              <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
+                Acessar a Workstation
+              </a>
+            </div>
+
+            <!-- Rodapé Formal -->
+            <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0 16px 0;" />
+            <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.5; text-align: center;">
+              Atenciosamente,<br>
+              <strong>Equipe AvJuris.AI</strong><br>
+              Plataforma de Inteligência e Automação Forense
+            </p>
+          </div>
+        </body>
+        </html>
+        """
+
         body = {
             "from": EMAIL_SENDER,
             "to": [payload.destinatario],
             "subject": f"{payload.titulo} — AvJuris.AI",
-            "html": f"""
-            <div style="font-family: Arial, sans-serif; color: #1e293b; padding: 20px;">
-              <h2 style="color: #0b132b; margin-bottom: 8px;">AVJURIS<span style="color: #38bdf8;">.AI</span></h2>
-              <p style="color: #64748b; font-size: 12px; margin-top: 0;">Workstation Jurídica com IA Forense</p>
-              <p>Prezado(a) Doutor(a),</p>
-              <p>Segue em anexo o documento jurídico finalizado (<strong>{payload.titulo}</strong>), gerado e formatado pela plataforma <strong>AvJuris.AI</strong>.</p>
-              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-              <p style="color: #94a3b8; font-size: 11px;">AvJuris.AI — Plataforma de Inteligência e Automação Forense</p>
-            </div>
-            """,
+            "html": html_email,
             "attachments": [
                 {
                     "filename": nome_arquivo,
@@ -567,28 +619,37 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
 
         html_content = f"""
         <!DOCTYPE html>
-        <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
-          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-            <div style="margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
-              <h2 style="color: #0b132b; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+        <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 16px;">
+          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 40px 36px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);">
+            
+            <!-- Marca / Header -->
+            <div style="text-align: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
+              <h1 style="color: #0b132b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">
                 AVJURIS<span style="color: #38bdf8;">.AI</span>
-              </h2>
-              <p style="color: #64748b; font-size: 11px; margin: 2px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+              </h1>
+              <p style="color: #64748b; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.8px;">
                 Workstation Jurídica com IA Forense
               </p>
             </div>
             
-            <h3 style="color: #0f172a; font-size: 18px; margin: 0 0 12px 0;">Olá, {payload.nome}! Boas-vindas.</h3>
+            <!-- Boas-vindas -->
+            <h2 style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
+              Olá, {payload.nome}! Boas-vindas.
+            </h2>
             
-            <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 18px 0;">
-              Sua conta foi ativada com sucesso. O <strong>AvJuris.AI</strong> é a sua estação de trabalho forense projetada para elevar a velocidade e o rigor dogmático de peças processuais e atas executivas.
+            <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+              Sua conta foi ativada com sucesso. O <strong>AvJuris.AI</strong> é a sua estação de trabalho forense projetada para elevar a velocidade e o rigor dogmático na redação de peças processuais e atas executivas.
             </p>
             
-            <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; border-radius: 6px; padding: 14px 18px; margin: 20px 0;">
-              <p style="color: #0f172a; font-size: 13px; margin: 0 0 8px 0; font-weight: 700;">Recursos disponíveis no seu plano:</p>
-              <ul style="color: #475569; font-size: 13px; margin: 0; padding-left: 18px; line-height: 1.6;">
+            <!-- Caixa de Recursos -->
+            <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; border-radius: 8px; padding: 16px 20px; margin: 20px 0 28px 0; border: 1px solid #e2e8f0; border-left-width: 4px;">
+              <p style="color: #0f172a; font-size: 13px; margin: 0 0 10px 0; font-weight: 700;">Recursos disponíveis no seu plano:</p>
+              <ul style="color: #475569; font-size: 13px; margin: 0; padding-left: 18px; line-height: 1.65;">
                 <li><strong>Petições de 1º Grau:</strong> Redação completa com fatos, fundamentos, teses e rol de pedidos.</li>
                 <li><strong>Conexão CNJ / DataJud:</strong> Identificação e endereçamento automático pelo número do processo.</li>
                 <li><strong>Módulo AtaJur:</strong> Transcrição e extração de matriz de prazos a partir de gravações de voz.</li>
@@ -596,14 +657,16 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
               </ul>
             </div>
             
-            <div style="text-align: center; margin: 28px 0 20px 0;">
+            <!-- CTA -->
+            <div style="text-align: center; margin: 28px 0 24px 0;">
               <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
-                Acessar a Workstation ➔
+                Acessar a Workstation
               </a>
             </div>
             
-            <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 28px 0 16px 0;" />
-            <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.4;">
+            <!-- Rodapé -->
+            <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0 16px 0;" />
+            <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.5; text-align: center;">
               Atenciosamente,<br>
               <strong>Equipe AvJuris.AI</strong>
             </p>
