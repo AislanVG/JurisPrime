@@ -3,8 +3,13 @@ import re
 import json
 import io
 import asyncio
+import smtplib
 from datetime import date
 from typing import List, Optional
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 import requests
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
@@ -35,10 +40,29 @@ CNJ_API_KEY = os.getenv("CNJ_API_KEY", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY", "")
 
+# --- VARIÁVEIS DE AMBIENTE SMTP ---
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER", "avjurisia@gmail.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_SENDER = os.getenv("SMTP_SENDER", f"AvJuris.AI <{SMTP_USER}>")
+
 # --- CLIENTE SUPABASE ADMIN ---
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+
+# --- MODELOS PYDANTIC ---
+class EmailDocumentoRequest(BaseModel):
+    destinatario: str
+    titulo: str = "Documento_AvJuris"
+    conteudo_markdown: str
+
+
+class EmailBoasVindasRequest(BaseModel):
+    destinatario: str
+    nome: Optional[str] = "Doutor(a)"
 
 
 # =====================================================================
@@ -223,7 +247,59 @@ ESTRUTURA OBRIGATÓRIA DA ATA:
 
 
 # =====================================================================
-# 4. ROTAS DA API
+# 4. FUNÇÃO AUXILIAR DE COMPILAÇÃO DOCX
+# =====================================================================
+
+def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional[bytes] = None) -> io.BytesIO:
+    if template_bytes:
+        doc = Document(io.BytesIO(template_bytes))
+    else:
+        doc = Document()
+        for section in doc.sections:
+            section.top_margin = Inches(1.18)     # 3 cm
+            section.left_margin = Inches(1.18)    # 3 cm
+            section.right_margin = Inches(0.78)   # 2 cm
+            section.bottom_margin = Inches(0.78)  # 2 cm
+
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Times New Roman'
+    font.size = Pt(12)
+    font.color.rgb = RGBColor(17, 24, 39)
+
+    linhas = conteudo_markdown.split("\n")
+    for linha in linhas:
+        texto = linha.strip()
+        if not texto:
+            doc.add_paragraph()
+            continue
+
+        p = doc.add_paragraph()
+        p.paragraph_format.line_spacing = 1.5
+
+        if texto.startswith("# "):
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run(texto.replace("# ", ""))
+            run.bold = True
+            run.font.size = Pt(14)
+        elif texto.startswith("## ") or texto.startswith("### "):
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            run = p.add_run(texto.replace("## ", "").replace("### ", ""))
+            run.bold = True
+            run.font.size = Pt(12)
+        else:
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p.paragraph_format.first_line_indent = Inches(0.78)
+            p.add_run(texto)
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+# =====================================================================
+# 5. ROTAS DA API
 # =====================================================================
 
 @app.get("/api/usuario/{user_id}/status")
@@ -290,9 +366,9 @@ async def gerar_peticao_stream(
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_parts.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
-            user_parts.append(types.Part.from_text(text=f"[Documento Anexo: {filename}]"))
+            user_parts.append(types.Part.from_text(f"[Documento Anexo: {filename}]"))
 
-    user_parts.append(types.Part.from_text(text=instrucao_usuario))
+    user_parts.append(types.Part.from_text(instrucao_usuario))
 
     async def stream_generator():
         conteudo_acumulado = []
@@ -380,7 +456,7 @@ async def processar_audio_ata(
                     role="user",
                     parts=[
                         types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
-                        types.Part.from_text(text=prompt_contexto)
+                        types.Part.from_text(prompt_contexto)
                     ]
                 )
             ],
@@ -406,63 +482,147 @@ async def processar_audio_ata(
         raise HTTPException(status_code=500, detail=f"Erro ao processar áudio: {str(e)}")
 
 
-# =====================================================================
-# 5. EXPORTAÇÃO DOCX COM SUPORTE A MODELO TIMBRADO (.DOCX)
-# =====================================================================
-
 @app.post("/api/exportar-docx")
 async def exportar_docx(
     titulo: str = Form("Documento_AvJuris"),
     conteudo_markdown: str = Form(...),
     template_timbrado: Optional[UploadFile] = File(None)
 ):
+    template_bytes = None
     if template_timbrado and template_timbrado.filename.endswith(".docx"):
         template_bytes = await template_timbrado.read()
-        doc = Document(io.BytesIO(template_bytes))
-    else:
-        doc = Document()
-        for section in doc.sections:
-            section.top_margin = Inches(1.18)     # 3 cm
-            section.left_margin = Inches(1.18)    # 3 cm
-            section.right_margin = Inches(0.78)   # 2 cm
-            section.bottom_margin = Inches(0.78)  # 2 cm
 
-    style = doc.styles['Normal']
-    font = style.font
-    font.name = 'Times New Roman'
-    font.size = Pt(12)
-    font.color.rgb = RGBColor(17, 24, 39)
-
-    linhas = conteudo_markdown.split("\n")
-    for linha in linhas:
-        texto = linha.strip()
-        if not texto:
-            doc.add_paragraph()
-            continue
-
-        p = doc.add_paragraph()
-        p.paragraph_format.line_spacing = 1.5
-
-        if texto.startswith("# "):
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(texto.replace("# ", ""))
-            run.bold = True
-            run.font.size = Pt(14)
-        elif texto.startswith("## ") or texto.startswith("### "):
-            run = p.add_run(texto.replace("## ", "").replace("### ", ""))
-            run.bold = True
-            run.font.size = Pt(12)
-        else:
-            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.first_line_indent = Inches(0.78)
-            p.add_run(texto)
-
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
+    buffer = compilar_markdown_para_docx(conteudo_markdown, template_bytes=template_bytes)
 
     return Response(
         content=buffer.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f"attachment; filename={titulo}.docx"}
     )
+
+
+# =====================================================================
+# 6. ROTAS DE DISPARO SMTP (ANEXO DOCX E BOAS-VINDAS)
+# =====================================================================
+
+@app.post("/api/ata/enviar-email")
+async def enviar_email_documento(payload: EmailDocumentoRequest):
+    """Envia o documento formatado em anexo .docx por e-mail via SMTP."""
+    if not SMTP_PASSWORD:
+        raise HTTPException(
+            status_code=500,
+            detail="Credencial SMTP_PASSWORD não configurada no servidor Render."
+        )
+
+    try:
+        buffer_docx = compilar_markdown_para_docx(payload.conteudo_markdown)
+
+        msg = MIMEMultipart()
+        msg["Subject"] = f"{payload.titulo} — AvJuris.AI"
+        msg["From"] = SMTP_SENDER
+        msg["To"] = payload.destinatario
+
+        corpo_email = f"""
+Prezado(a) Doutor(a),
+
+Segue em anexo o documento jurídico finalizado ({payload.titulo}), formatado e exportado via AvJuris.AI.
+
+--------------------------------------------------
+AvJuris.AI — Workstation Jurídica com IA Forense
+        """
+        msg.attach(MIMEText(corpo_email, "plain", "utf-8"))
+
+        part = MIMEBase("application", "vnd.openxmlformats-officedocument.wordprocessingml.document")
+        part.set_payload(buffer_docx.read())
+        encoders.encode_base64(part)
+        nome_arquivo = f"{re.sub(r'[^a-zA-Z0-9_-]', '_', payload.titulo)}.docx"
+        part.add_header("Content-Disposition", f'attachment; filename="{nome_arquivo}"')
+        msg.attach(part)
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, payload.destinatario, msg.as_string())
+        server.quit()
+
+        return {"status": "sucesso", "mensagem": "E-mail enviado com sucesso com anexo .docx!"}
+
+    except Exception as e:
+        print(f"Erro no envio de e-mail com anexo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Falha no envio SMTP: {str(e)}")
+
+
+@app.post("/api/usuario/onboarding")
+async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
+    """Envia o e-mail de boas-vindas com template HTML quando o usuário cria conta ou faz login."""
+    if not SMTP_PASSWORD:
+        return {"status": "ignorado", "motivo": "SMTP_PASSWORD ausente"}
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Bem-vindo(a) ao AvJuris.AI"
+        msg["From"] = SMTP_SENDER
+        msg["To"] = payload.destinatario
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
+          <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 36px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            
+            <div style="margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+              <h2 style="color: #0b132b; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                AVJURIS<span style="color: #38bdf8;">.AI</span>
+              </h2>
+              <p style="color: #64748b; font-size: 11px; margin: 2px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+                Workstation Jurídica com IA Forense
+              </p>
+            </div>
+            
+            <h3 style="color: #0f172a; font-size: 18px; margin: 0 0 12px 0;">Olá, {payload.nome}! Boas-vindas.</h3>
+            
+            <p style="color: #334155; font-size: 14px; line-height: 1.6; margin: 0 0 18px 0;">
+              Sua conta foi ativada com sucesso. O <strong>AvJuris.AI</strong> é a sua estação de trabalho forense projetada para elevar a velocidade e o rigor dogmático de peças processuais e atas executivas.
+            </p>
+            
+            <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; border-radius: 6px; padding: 14px 18px; margin: 20px 0;">
+              <p style="color: #0f172a; font-size: 13px; margin: 0 0 8px 0; font-weight: 700;">Recursos disponíveis no seu plano:</p>
+              <ul style="color: #475569; font-size: 13px; margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li><strong>Petições de 1º Grau:</strong> Redação completa com fatos, fundamentos, teses e rol de pedidos.</li>
+                <li><strong>Conexão CNJ / DataJud:</strong> Identificação e endereçamento automático pelo número do processo.</li>
+                <li><strong>Módulo AtaJur:</strong> Transcrição e extração de matriz de prazos a partir de gravações de voz.</li>
+                <li><strong>Exportação Timbrada:</strong> Aplicação direta no modelo institucional (.docx) do seu escritório.</li>
+              </ul>
+            </div>
+            
+            <div style="text-align: center; margin: 28px 0 20px 0;">
+              <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
+                Acessar a Workstation ➔
+              </a>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 28px 0 16px 0;" />
+            <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.4;">
+              Atenciosamente,<br>
+              <strong>Equipe AvJuris.AI</strong><br>
+              Suporte: avjurisia@gmail.com
+            </p>
+          </div>
+        </body>
+        </html>
+        """
+
+        msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, payload.destinatario, msg.as_string())
+        server.quit()
+
+        return {"status": "sucesso", "mensagem": "E-mail de boas-vindas enviado com sucesso!"}
+
+    except Exception as e:
+        print(f"Erro no envio de boas-vindas: {str(e)}")
+        return {"status": "erro", "detalhes": str(e)}
