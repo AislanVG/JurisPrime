@@ -348,23 +348,23 @@ async def gerar_peticao_stream(
     verificar_e_consumir_cota(user_id=user_id, arquivos_bytes=arquivos_lidos)
 
     client = genai.Client(api_key=GEMINI_API_KEY)
-    user_parts = []
+    user_contents = []
 
-    # Integração com DataJud/CNJ se houver numeração processual
+    # 1. Integração com DataJud/CNJ se houver numeração processual
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
-            user_parts.append(dados_cnj)
+            user_contents.append(dados_cnj)
 
-    # Anexos em PDF
+    # 2. Anexos em PDF
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
-            user_parts.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
-            user_parts.append(f"[Documento Anexo: {filename}]")
+            user_contents.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
+            user_contents.append(f"[Documento Anexo: {filename}]")
 
-    # Passa a instrução do usuário diretamente no array de parts
-    user_parts.append(instrucao_usuario)
+    # 3. Instrução do usuário
+    user_contents.append(instrucao_usuario)
 
     async def stream_generator():
         conteudo_acumulado = []
@@ -374,15 +374,11 @@ async def gerar_peticao_stream(
                 temperature=0.1,
                 max_output_tokens=8192
             )
-            
-            # Converte com segurança para types.Part sem disparar TypeError
-            parts_payload = [
-                p if isinstance(p, types.Part) else types.Part.from_text(text=p) for p in user_parts
-            ]
 
+            # Passagem direta de contents suportada nativamente pelo google-genai
             response = client.models.generate_content_stream(
                 model="gemini-2.5-flash",
-                contents=[types.Content(role="user", parts=parts_payload)],
+                contents=user_contents,
                 config=config
             )
             for chunk in response:
@@ -405,7 +401,7 @@ async def gerar_peticao_stream(
 
             yield "data: [DONE]\n\n"
         except Exception as e:
-            print(f"Erro no stream: {str(e)}")
+            print(f"Erro no stream do Gemini: {str(e)}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(
