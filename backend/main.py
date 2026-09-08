@@ -350,20 +350,20 @@ async def gerar_peticao_stream(
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_contents = []
 
-    # 1. Integração com DataJud/CNJ se houver numeração processual
+    # Integração com DataJud/CNJ se houver numeração processual
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
             user_contents.append(dados_cnj)
 
-    # 2. Anexos em PDF
+    # Anexos em PDF
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_contents.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
             user_contents.append(f"[Documento Anexo: {filename}]")
 
-    # 3. Instrução do usuário
+    # Passa o texto do usuário diretamente
     user_contents.append(instrucao_usuario)
 
     async def stream_generator():
@@ -375,7 +375,6 @@ async def gerar_peticao_stream(
                 max_output_tokens=8192
             )
 
-            # Passagem direta de contents suportada nativamente pelo google-genai
             response = client.models.generate_content_stream(
                 model="gemini-2.5-flash",
                 contents=user_contents,
