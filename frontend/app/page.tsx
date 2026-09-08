@@ -6,8 +6,8 @@ import {
   Mic, 
   FileText, 
   Download, 
-  Copy,
-  Check,
+  Copy, 
+  Check, 
   Loader2, 
   Square, 
   Eye, 
@@ -24,8 +24,8 @@ import {
   Send, 
   Sparkles, 
   ChevronRight, 
-  Briefcase,
-  FileCheck2
+  Briefcase, 
+  FileCheck2 
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -434,21 +434,30 @@ export default function Home() {
     setEnviandoEmail(true);
     setStatusEmail(null);
 
+    const tituloDocumento = moduloSelecionado === "ata" 
+      ? (instrucao.split("\n")[0] || "Ata Executiva de Reunião") 
+      : (instrucao.split("\n")[0] || "Petição Inicial");
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/ata/enviar-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           destinatario: emailDestino,
-          titulo: "Documento Gerado - AvJuris",
+          titulo: tituloDocumento,
           conteudo_markdown: resultadoTexto,
         }),
       });
 
-      if (!response.ok) throw new Error("Erro no envio");
-      setStatusEmail("E-mail enviado com sucesso com anexo .docx!");
-    } catch (error) {
-      setStatusEmail("Falha ao enviar e-mail. Verifique o servidor SMTP.");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Falha no servidor ao processar envio.");
+      }
+
+      const data = await response.json();
+      setStatusEmail(data.mensagem || "E-mail enviado com sucesso com anexo .docx!");
+    } catch (error: any) {
+      setStatusEmail(error.message || "Falha ao enviar e-mail. Verifique o servidor SMTP.");
     } finally {
       setEnviandoEmail(false);
     }
@@ -728,7 +737,7 @@ export default function Home() {
 
           <div className="flex items-center space-x-3">
             <button 
-              onClick={() => setShowHelpModal(true)}
+              onClick={() => setShowHelpModal(true)} 
               className="px-3 py-1.5 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 flex items-center gap-1.5 transition cursor-pointer"
             >
               <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
@@ -1250,7 +1259,7 @@ export default function Home() {
                       <span>⚖️</span> Elaboração de Peças com Inteligência Forense
                     </h4>
                     <p className="text-xs text-blue-900 leading-relaxed">
-                      O motor jurídico do AvJuris é treinado no Direito brasileiro e analisa a legislação (CPC, Código Civil, CDC, etc.) com teses estruturadas prontas para protocolo.
+                      O motor jurídico do AvJuris é treinado no Direito brasileiro e analisa a legislação (CPC, Código Civil, CDC, etc.) com teses estruturadas prontas para protocolo[cite: 1].
                     </p>
                   </div>
 
@@ -1267,9 +1276,9 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                       <h5 className="font-bold text-slate-900 mb-1">Anexo de Autos em PDF:</h5>
                       <ul className="list-disc pl-4 space-y-1 text-xs text-slate-600">
-                        <li>Você pode anexar até <strong>10 arquivos por vez</strong> (contratos, extratos, notificações).</li>
-                        <li>A IA extrai automaticamente cláusulas contratuais e valores para citar no mérito.</li>
-                        <li>Limite de até 150MB por arquivo e até 1.500 páginas conforme seu plano.</li>
+                        <li>Você pode anexar até <strong>10 arquivos por vez</strong> (contratos, extratos, notificações)[cite: 1].</li>
+                        <li>A IA extrai automaticamente cláusulas contratuais e valores para citar no mérito[cite: 1].</li>
+                        <li>Limite de até 150MB por arquivo e até 1.500 páginas conforme seu plano[cite: 1].</li>
                       </ul>
                     </div>
                   </div>
@@ -1284,7 +1293,7 @@ export default function Home() {
                       <span>🏛️</span> Integração em Tempo Real com o CNJ / DataJud
                     </h4>
                     <p className="text-xs text-purple-900 leading-relaxed">
-                      O AvJuris conecta-se à API Pública do Conselho Nacional de Justiça para buscar dados processuais oficiais sem necessidade de preenchimento manual.
+                      O AvJuris conecta-se à API Pública do Conselho Nacional de Justiça para buscar dados processuais oficiais sem necessidade de preenchimento manual[cite: 1].
                     </p>
                   </div>
 
@@ -1292,17 +1301,17 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Formato do Número CNJ:</h5>
                       <p className="text-xs text-slate-600 mb-2">
-                        Digite ou cole o número único do processo com 20 dígitos no campo de instruções (ex: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-blue-600">0001234-56.2026.8.12.0001</code>).
+                        Digite ou cole o número único do processo com 20 dígitos no campo de instruções (ex: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-blue-600">0001234-56.2026.8.12.0001</code>)[cite: 1].
                       </p>
                       <p className="text-xs text-slate-600">
-                        O sistema identifica a comarca, classe processual, vara competente e assuntos cadastrados, aplicando o endereçamento correto na petição.
+                        O sistema identifica a comarca, classe processual, vara competente e assuntos cadastrados, aplicando o endereçamento correto na petição[cite: 1].
                       </p>
                     </div>
 
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Tribunais Habilitados:</h5>
                       <p className="text-xs text-slate-600">
-                        TJMS, TJSP, TJMT, TJDFT, TRF3 e TRF1 (com expansão contínua para outros tribunais estaduais e federais).
+                        TJMS, TJSP, TJMT, TJDFT, TRF3 e TRF1 (com expansão contínua para outros tribunais estaduais e federais)[cite: 1].
                       </p>
                     </div>
                   </div>
@@ -1317,7 +1326,7 @@ export default function Home() {
                       <span>🎙️</span> Atas Executivas de Reuniões & Síntese de Áudio
                     </h4>
                     <p className="text-xs text-emerald-900 leading-relaxed">
-                      Transforme conversas com clientes, audiências ou reuniões internas em atas formais com divisão executiva de tarefas e prazos fatais.
+                      Transforme conversas com clientes, audiências ou reuniões internas em atas formais com divisão executiva de tarefas e prazos fatais[cite: 1].
                     </p>
                   </div>
 
@@ -1332,7 +1341,7 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">2. Upload de Arquivos de Áudio:</h5>
                       <p className="text-xs text-slate-600">
-                        Aceita gravações externas em formatos <strong>.mp3, .m4a, .wav e .webm</strong> de até 150MB através do botão de anexo.
+                        Aceita gravações externas em formatos <strong>.mp3, .m4a, .wav e .webm</strong> de até 150MB através do botão de anexo[cite: 1].
                       </p>
                     </div>
                   </div>
@@ -1340,7 +1349,7 @@ export default function Home() {
                   <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                     <h5 className="font-bold text-slate-900 text-xs mb-1">Estrutura Entregue pela Ata:</h5>
                     <p className="text-xs text-slate-600">
-                      Cabeçalho com presentes, resumo circunstanciado das deliberações, tabela de tarefas (*Action Items* com responsáveis nominais) e campo formal de assinaturas.
+                      Cabeçalho com presentes, resumo circunstanciado das deliberações, tabela de tarefas (*Action Items* com responsáveis nominais) e campo formal de assinaturas[cite: 1].
                     </p>
                   </div>
                 </div>
@@ -1354,7 +1363,7 @@ export default function Home() {
                       <span>📄</span> Exportação com Identidade Visual do seu Escritório
                     </h4>
                     <p className="text-xs text-amber-900 leading-relaxed">
-                      Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais da sua banca em todas as minutas baixadas.
+                      Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais da sua banca em todas as minutas baixadas[cite: 1].
                     </p>
                   </div>
 
@@ -1363,8 +1372,8 @@ export default function Home() {
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Como usar seu modelo timbrado:</h5>
                       <ol className="list-decimal pl-4 space-y-1.5 text-xs text-slate-600">
                         <li>Clique na opção <strong>Usar Modelo Timbrado (.docx)</strong> na barra inferior da caixa de texto.</li>
-                        <li>Selecione um arquivo <strong>.docx</strong> que já possua seu cabeçalho, logo e rodapé pré-formatados.</li>
-                        <li>Ao clicar em <strong>Exportar .DOCX</strong>, o backend preservará toda a estrutura visual do seu arquivo e inserirá a minuta formatada no corpo do documento.</li>
+                        <li>Selecione um arquivo <strong>.docx</strong> que já possua seu cabeçalho, logo e rodapé pré-formatados[cite: 1].</li>
+                        <li>Ao clicar em <strong>Exportar .DOCX</strong>, o backend preservará toda a estrutura visual do seu arquivo e inserirá a minuta formatada no corpo do documento[cite: 1].</li>
                       </ol>
                     </div>
 
@@ -1386,7 +1395,7 @@ export default function Home() {
                       <span>💳</span> Gestão de Assinatura, Cotas e Privacidade
                     </h4>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      Acompanhe o consumo mensal do seu plano e mantenha seus dados em conformidade com a LGPD.
+                      Acompanhe o consumo mensal do seu plano e mantenha seus dados em conformidade com a LGPD[cite: 1].
                     </p>
                   </div>
 
@@ -1394,14 +1403,14 @@ export default function Home() {
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Renovação de Cota:</h5>
                       <p className="text-xs text-slate-600">
-                        O limite de documentos é renovado automaticamente a cada 30 dias no primeiro dia de cada mês civil. O consumo em tempo real pode ser visualizado na barra inferior esquerda da barra lateral.
+                        O limite de documentos é renovado automaticamente a cada 30 dias no primeiro dia de cada mês civil[cite: 1]. O consumo em tempo real pode ser visualizado na barra inferior esquerda da barra lateral.
                       </p>
                     </div>
 
                     <div className="border border-slate-200 rounded-xl p-4">
                       <h5 className="font-bold text-slate-900 text-xs mb-1">Sigilo & LGPD:</h5>
                       <p className="text-xs text-slate-600">
-                        Seus documentos e clientes são isolados por chave de segurança (RLS). Nenhuma informação processual confidencial é compartilhada com terceiros ou utilizada para treinamento público.
+                        Seus documentos e clientes são isolados por chave de segurança (RLS)[cite: 1]. Nenhuma informação processual confidencial é compartilhada com terceiros ou utilizada para treinamento público[cite: 1].
                       </p>
                     </div>
                   </div>
