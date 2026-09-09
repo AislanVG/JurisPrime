@@ -211,23 +211,24 @@ def consultar_datajud(numero_processo: str, tribunal: str = "tjsp") -> Optional[
 # =====================================================================
 
 SUPERPROMPT_PETICAO_1GRAU = """
-Você é um Advogado Sênior e Especialista em Prática Forense e Direito Processual Civil Brasileiro.
-Sua missão é redigir uma PEÇA PROCESSUAL COMPLETA, PROFISSIONAL, EXAUSTIVA E PRONTA PARA PROTOCOLO (meta de 2.500 a 4.000 palavras).
+Você é um Advogado Sênior, Doutrinador e Especialista em Prática Forense e Direito Processual Civil Brasileiro.
+Sua missão é redigir uma PEÇA PROCESSUAL COMPLETA, EXAUSTIVA, COM RIGOR DOGMÁTICO E PRONTA PARA PROTOCOLO (meta de 2.500 a 4.000 palavras).
 
-DIRETRIZES DE ESTILO E FORMATAÇÃO (ESTRITO):
-- NÃO use marcadores de negrito '**' ou cabeçalhos com '#' desnecessários no meio de frases.
-- Para títulos de seções e tópicos, escreva em linha própria com numeração e caixa alta (ex: 1. DOS FATOS, 1.1. Da Tempestividade, 2. DO DIREITO, 3. DA TUTELA DE URGÊNCIA, 4. DOS PEDIDOS).
-- O nome da peça deve vir em linha própria centralizada em caixa alta (ex: AÇÃO DE COBRANÇA C/C INDENIZAÇÃO POR DANOS MORAIS ou AGRAVO DE INSTRUMENTO COM PEDIDO DE LIMINAR RECURSAL).
-- Quando citar Jurisprudência/Ementa, inicie a linha com '> EMENTA: ...' em bloco contínuo, finalizando com a citação do julgado (ex: > (REsp n. 1.827.553/RJ, Rel. Ministra Nancy Andrighi, Terceira Turma, DJe 29/08/2019)).
+DIRETRIZES DE FORMATAÇÃO E TIPOGRAFIA (RIGOROSO):
+- NÃO utilize asteriscos duplos '**' no meio de frases normais.
+- O endereçamento deve ser em linha própria e em caixa alta.
+- O nome da peça processual deve estar em linha isolada, centralizada e em caixa alta.
+- As seções principais e subtópicos devem seguir a numeração forense padrão (ex: 1. DOS FATOS, 1.1. Da Tempestividade, 2. DO CABIMENTO, 3. DO DIREITO, 4. DA TUTELA DE URGÊNCIA, 5. DOS PEDIDOS).
+- Todas as ementas e julgados do STJ/STF/Tribunais Estaduais devem ser transcritos iniciando com '> EMENTA: ...' em bloco contínuo, finalizando com a menção exata do acórdão (ex: > (REsp n. 1.827.553/RJ, Rel. Ministra Nancy Andrighi, Terceira Turma, DJe 29/08/2019)).
 
 ESTRUTURA FORENSE OBRIGATÓRIA:
-1. ENDEREÇAMENTO FORMAL COMPLETO (Ao Juízo ou Desembargador Presidente competente).
-2. PREÂMBULO E QUALIFICAÇÃO COMPLETA DAS PARTES com fulcro legal preciso.
-3. 1. DOS FATOS E DO CONTEXTO DA LIDE (Narrativa cronológica minuciosa).
-4. 2. DOS PRESSUPOSTOS PROCESSUAIS (Cabimento, Tempestividade, Preparo/Gratuidade, Legitimidade).
-5. 3. DA TUTELA DE URGÊNCIA / EVIDÊNCIA (Art. 300 / 311 do CPC com fumaça do bom direito e perigo de dano).
-6. 4. DO MÉRITO E FUNDAMENTAÇÃO JURÍDICA (Articulação dogmática do CPC, Código Civil, CDC e precedentes vinculantes do STJ/STF).
-7. 5. DOS PEDIDOS E REQUERIMENTOS FINAIS (Itens a, b, c... detalhando tutela, citação, produção probatória, procedência integral, sucumbência e valor da causa).
+1. ENDEREÇAMENTO AO JUÍZO OU DESEMBARGADOR PRESIDENTE COMPETENTE.
+2. FOLHA DE ROSTO / QUALIFICAÇÃO COMPLETA DAS PARTES COM DISPOSITIVOS LEGAIS FULCRAIS.
+3. 1. DOS PRESSUPOSTOS DE ADMISSIBILIDADE (Cabimento estrito / Taxatividade mitigada art. 1.015 CPC / Tema 988 STJ, Tempestividade com contagem em dias úteis, Preparo / Gratuidade da Justiça e Indicação de peças obrigatórias).
+4. 2. DA EXPOSIÇÃO FÁTICA E DO CONFRONTO DIALÉTICO COM A DECISÃO RECORRIDA / CONDUTA ILÍCITA.
+5. 3. DA DEMONSTRAÇÃO DO DIREITO E DO ERRO DE JULGAMENTO (Análise pormenorizada da matéria com doutrina e precedentes vinculantes).
+6. 4. DO PEDIDO DE LIMINAR / TUTELA DE URGÊNCIA (Demonstração inequívoca da probabilidade do direito e perigo de dano nos termos do art. 300 / 995 parágrafo único do CPC).
+7. 5. DOS PEDIDOS E REQUERIMENTOS (Relação estruturada alfabética: admissibilidade, concessão de liminar, intimação da parte contrária, intervenção do MP se cabível, provimento final, sucumbência e encerramento de praxe).
 """
 
 SUPERPROMPT_ATA_REUNIAO = """
@@ -247,7 +248,7 @@ ESTRUTURA OBRIGATÓRIA DA ATA:
 
 
 # =====================================================================
-# 4. FUNÇÃO AUXILIAR DE COMPILAÇÃO DOCX
+# 4. FUNÇÃO AUXILIAR DE COMPILAÇÃO DOCX (ABNT FORENSE)
 # =====================================================================
 
 def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional[bytes] = None) -> io.BytesIO:
@@ -278,7 +279,7 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
         p.paragraph_format.line_spacing = 1.5
 
         # Citação de Ementa / Jurisprudência (Recuo de 4 cm e fonte 10.5)
-        if texto.startswith("> "):
+        if texto.startswith("> ") or texto.startswith("EMENTA:"):
             texto_limpo = texto.replace("> ", "").replace("*", "")
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             p.paragraph_format.left_indent = Inches(1.57)  # ~4 cm
