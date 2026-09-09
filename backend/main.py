@@ -36,15 +36,17 @@ CNJ_API_KEY = os.getenv("CNJ_API_KEY", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY", "")
 
-# --- VARIÁVEIS DE E-MAIL ---
+# --- VARIÁVEIS DE E-MAIL (RESEND / API HTTP) ---
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 EMAIL_SENDER = os.getenv("EMAIL_SENDER", "AvJuris.AI <onboarding@resend.dev>")
 
+# --- CLIENTE SUPABASE ADMIN ---
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
+# --- MODELOS PYDANTIC ---
 class EmailDocumentoRequest(BaseModel):
     destinatario: str
     titulo: str = "Documento_AvJuris"
@@ -54,6 +56,12 @@ class EmailDocumentoRequest(BaseModel):
 class EmailBoasVindasRequest(BaseModel):
     destinatario: str
     nome: Optional[str] = "Doutor(a)"
+
+
+class EmailCarrinhoAbandonadoRequest(BaseModel):
+    destinatario: str
+    nome: Optional[str] = "Doutor(a)"
+    plano_nome: str = "Crescimento"
 
 
 # =====================================================================
@@ -104,10 +112,36 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
                 detail=f"Limite mensal de {max_docs} minutas atingido para o plano {plano.get('nome')}. Assine um plano para continuar gerando."
             )
 
+        if arquivos_bytes:
+            total_paginas = 0
+            max_mb = plano.get("max_mb_arquivo", 150)
+            max_pags = plano.get("max_paginas_upload", 500)
+
+            for filename, raw_bytes in arquivos_bytes:
+                tamanho_mb = len(raw_bytes) / (1024 * 1024)
+                if tamanho_mb > max_mb:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"O arquivo '{filename}' possui {tamanho_mb:.1f}MB e excede o limite de {max_mb}MB do plano {plano.get('nome')}."
+                    )
+
+                if filename.lower().endswith(".pdf"):
+                    try:
+                        reader = PdfReader(io.BytesIO(raw_bytes))
+                        total_paginas += len(reader.pages)
+                    except Exception:
+                        pass
+
+            if total_paginas > max_pags:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"O total de {total_paginas} páginas enviadas excede o limite de {max_pags} páginas do plano {plano.get('nome')}."
+                )
+
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Aviso cota: {str(e)}")
+        print(f"Aviso de validação de assinatura: {str(e)}")
 
 
 def registrar_incremento_documento(user_id: Optional[str]):
@@ -119,7 +153,7 @@ def registrar_incremento_documento(user_id: Optional[str]):
             atual = res.data.get("documentos_usados_mes", 0)
             supabase.table("assinaturas").update({"documentos_usados_mes": atual + 1}).eq("user_id", user_id).execute()
     except Exception as e:
-        print(f"Erro incremento: {str(e)}")
+        print(f"Erro ao incrementar consumo de documento: {str(e)}")
 
 
 def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conteudo: str, instrucao: str = "", tribunal: str = ""):
@@ -135,7 +169,7 @@ def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conte
             "tribunal": tribunal
         }).execute()
     except Exception as e:
-        print(f"Erro persistência: {str(e)}")
+        print(f"Erro ao persistir documento no Supabase: {str(e)}")
 
 
 # =====================================================================
@@ -172,7 +206,7 @@ def consultar_datajud(numero_processo: str, tribunal: str = "tjsp") -> Optional[
 
 
 # =====================================================================
-# 3. SUPERPROMPT FORENSE INTEGRAL
+# 3. PROMPTS FORENSES DE ALTA DENSIDADE (PADRÃO TRIBUNAIS SUPERIORES)
 # =====================================================================
 
 SUPERPROMPT_PETICAO_1GRAU = """
@@ -259,7 +293,7 @@ ESTRUTURA OBRIGATÓRIA DA ATA:
 
 
 # =====================================================================
-# 4. COMPILAÇÃO DOCX ABNT
+# 4. FUNÇÃO AUXILIAR DE COMPILAÇÃO DOCX (ABNT FORENSE)
 # =====================================================================
 
 def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional[bytes] = None) -> io.BytesIO:
@@ -268,10 +302,10 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
     else:
         doc = Document()
         for section in doc.sections:
-            section.top_margin = Inches(1.18)
-            section.left_margin = Inches(1.18)
-            section.right_margin = Inches(0.78)
-            section.bottom_margin = Inches(0.78)
+            section.top_margin = Inches(1.18)     # 3 cm
+            section.left_margin = Inches(1.18)    # 3 cm
+            section.right_margin = Inches(0.78)   # 2 cm
+            section.bottom_margin = Inches(0.78)  # 2 cm
 
     style = doc.styles['Normal']
     font = style.font
@@ -289,10 +323,11 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.5
 
+        # Citação de Ementa / Jurisprudência (Recuo de 4 cm e fonte 10.5)
         if texto.startswith("> ") or texto.startswith("EMENTA:"):
             texto_limpo = texto.replace("> ", "").replace("*", "")
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.left_indent = Inches(1.57)
+            p.paragraph_format.left_indent = Inches(1.57)  # ~4 cm
             p.paragraph_format.first_line_indent = Inches(0)
             p.paragraph_format.line_spacing = 1.15
             run = p.add_run(texto_limpo)
@@ -325,7 +360,7 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
 
 @app.get("/api/usuario/{user_id}/status")
 async def obter_status_usuario(user_id: str):
-    """Retorna o plano e o consumo de cota atual do usuário."""
+    """Retorna o plano e o consumo de cota atual do usuário com datas de ciclo."""
     hoje = date.today()
     inicio_ciclo = hoje.replace(day=1)
     fim_ciclo = (inicio_ciclo + timedelta(days=32)).replace(day=1) - timedelta(days=1)
@@ -342,7 +377,6 @@ async def obter_status_usuario(user_id: str):
     try:
         res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
         if not res.data or len(res.data) == 0:
-            # Se não existe registro, cria como gratuito por padrão
             novo_registro = {
                 "user_id": user_id,
                 "plano_id": "gratuito",
@@ -366,10 +400,10 @@ async def obter_status_usuario(user_id: str):
         assinatura = res.data[0]
         plano = assinatura.get("planos") or {}
         
-        # Se o plano estiver vazio ou mapeado como básico antigo sem pagamento, força Gratuito
         nome_plano = plano.get("nome", "Gratuito")
         max_docs = plano.get("max_documentos_mes", 5)
         
+        # Garante fallback de Gratuito (5 docs) se não houver assinatura paga ativa
         if nome_plano.lower() in ("básico", "basico") and assinatura.get("plano_id") not in ("individual_1", "individual_2", "individual_3", "crescimento", "escala"):
             nome_plano = "Gratuito"
             max_docs = 5
@@ -391,8 +425,10 @@ async def obter_status_usuario(user_id: str):
             "erro": str(e)
         }
 
+
 @app.get("/api/documentos/{user_id}")
 async def listar_documentos_usuario(user_id: str):
+    """Lista o histórico de petições e atas criadas pelo usuário."""
     if not supabase:
         return []
     try:
@@ -423,12 +459,14 @@ async def gerar_peticao_stream(
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_contents = []
 
+    # Integração com DataJud/CNJ se houver numeração processual
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
             user_contents.append(dados_cnj)
 
+    # Anexos em PDF
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_contents.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
@@ -577,11 +615,12 @@ async def exportar_docx(
 
 
 # =====================================================================
-# 6. DISPARO DE E-MAIL (RESEND API HTTP)
+# 6. ROTAS DE DISPARO DE E-MAIL (RESEND API HTTP - PORTA 443 HTTPS)
 # =====================================================================
 
 @app.post("/api/ata/enviar-email")
 async def enviar_email_documento(payload: EmailDocumentoRequest):
+    """Envia o documento formatado em anexo .docx com layout forense corporativo via Resend."""
     if not RESEND_API_KEY:
         raise HTTPException(
             status_code=500,
@@ -682,6 +721,7 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
 
 @app.post("/api/usuario/onboarding")
 async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
+    """Envia o e-mail de boas-vindas com template HTML via API HTTP do Resend."""
     if not RESEND_API_KEY:
         return {"status": "ignorado", "motivo": "RESEND_API_KEY ausente"}
 
@@ -760,4 +800,61 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
 
     except Exception as e:
         print(f"Erro no envio de boas-vindas: {str(e)}")
+        return {"status": "erro", "detalhes": str(e)}
+
+
+@app.post("/api/usuario/recuperacao-checkout")
+async def enviar_email_recuperacao_checkout(payload: EmailCarrinhoAbandonadoRequest):
+    """Envia e-mail humanizado de recuperação de checkout via Resend."""
+    if not RESEND_API_KEY:
+        return {"status": "ignorado", "motivo": "RESEND_API_KEY ausente"}
+
+    try:
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; font-size: 14px; margin: 0; padding: 24px;">
+          <p>Olá, {payload.nome}! Tudo bem?</p>
+          
+          <p>Aqui é a Mariana, do time de atendimento do <strong>AvJuris.AI</strong> 😊</p>
+          
+          <p>Percebi que você esteve prestes a ativar o <strong>Plano {payload.plano_nome}</strong> na nossa workstation, mas o processo acabou não sendo concluído.</p>
+          
+          <p>Surgiu alguma dúvida sobre os recursos (minutas de 1º grau, transcrição de atas de reunião ou conexão DataJud) ou posso te ajudar a liberar o acesso da sua banca?</p>
+          
+          <p>Se preferir, me responda por este e-mail ou me informe um número de WhatsApp que entro em contato direto com você para esclarecer qualquer ponto ou verificar uma condição especial.</p>
+          
+          <p>Vai ser um prazer te ajudar a acelerar a produção de peças do seu escritório!</p>
+          
+          <p style="margin-top: 24px;">
+            <strong>Mariana Ramos</strong><br>
+            <span style="color: #64748b; font-size: 13px;">Relacionamento & Contas | AvJuris.AI</span><br>
+            <a href="https://juris-prime-six.vercel.app" style="color: #2563eb; text-decoration: none; font-size: 13px;">juris-prime-six.vercel.app</a>
+          </p>
+        </body>
+        </html>
+        """
+
+        body = {
+            "from": EMAIL_SENDER,
+            "to": [payload.destinatario],
+            "subject": f"Dúvida sobre o Plano {payload.plano_nome}? — AvJuris.AI",
+            "html": html_content
+        }
+
+        res = requests.post(url, json=body, headers=headers, timeout=15)
+        if res.status_code not in (200, 201):
+            return {"status": "erro", "detalhes": res.text}
+
+        return {"status": "sucesso", "mensagem": "E-mail de recuperação enviado com sucesso!"}
+
+    except Exception as e:
+        print(f"Erro no envio de recuperação: {str(e)}")
         return {"status": "erro", "detalhes": str(e)}
