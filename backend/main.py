@@ -211,28 +211,23 @@ def consultar_datajud(numero_processo: str, tribunal: str = "tjsp") -> Optional[
 # =====================================================================
 
 SUPERPROMPT_PETICAO_1GRAU = """
-Você é um Advogado Sênior e Especialista em Prática Forense e Direito Processual Civil.
+Você é um Advogado Sênior e Especialista em Prática Forense e Direito Processual Civil Brasileiro.
 Sua missão é redigir uma PEÇA PROCESSUAL COMPLETA, PROFISSIONAL, EXAUSTIVA E PRONTA PARA PROTOCOLO (meta de 2.500 a 4.000 palavras).
 
-DIRETRIZES ESTRUTURAIS OBRIGATÓRIAS:
-1. ENDEREÇAMENTO FORMAL:
-   EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA [NÚMERO] VARA CÍVEL DA COMARCA DE [CIDADE/ESTADO]
-   (Ou ao Tribunal ad quem se for recurso, com Processo de Origem, Vara de Origem, Agravante e Agravado).
+DIRETRIZES DE ESTILO E FORMATAÇÃO (ESTRITO):
+- NÃO use marcadores de negrito '**' ou cabeçalhos com '#' desnecessários no meio de frases.
+- Para títulos de seções e tópicos, escreva em linha própria com numeração e caixa alta (ex: 1. DOS FATOS, 1.1. Da Tempestividade, 2. DO DIREITO, 3. DA TUTELA DE URGÊNCIA, 4. DOS PEDIDOS).
+- O nome da peça deve vir em linha própria centralizada em caixa alta (ex: AÇÃO DE COBRANÇA C/C INDENIZAÇÃO POR DANOS MORAIS ou AGRAVO DE INSTRUMENTO COM PEDIDO DE LIMINAR RECURSAL).
+- Quando citar Jurisprudência/Ementa, inicie a linha com '> EMENTA: ...' em bloco contínuo, finalizando com a citação do julgado (ex: > (REsp n. 1.827.553/RJ, Rel. Ministra Nancy Andrighi, Terceira Turma, DJe 29/08/2019)).
 
-2. PREÂMBULO E QUALIFICAÇÃO COMPLETA:
-   [NOME DA PARTE], qualificação forense completa, por seu advogado infra-assinado, com fundamento nos arts. 319 e seguintes do CPC (ou 1.015 do CPC para recursos), vem perante V. Exa. propor/interpor a presente:
-   [NOME DA PEÇA EM CAIXA ALTA E NEGRITO]
-
-3. ESTRUTURAÇÃO NUMERADA EM TÓPICOS:
-   1. DOS FATOS CRONOLÓGICOS (Narrativa fática detalhada, indicando nexo causal e dano).
-   2. DOS PRESSUPOSTOS PROCESSUAIS / PRELIMINARES (Cabimento, Tempestividade, Preparo/Gratuidade, Legitimidade).
-   3. DA TUTELA DE URGÊNCIA (Se aplicável: probabilidade do direito e perigo de dano fundamentados no Art. 300 do CPC).
-   4. DO DIREITO E FUNDAMENTAÇÃO DOGMÁTICA (Articulação minuciosa do Código Civil, CDC, CPC e teses pacificadas).
-   5. DOS PEDIDOS E REQUERIMENTOS FINAIS (Relação alfabética a, b, c... com citações, provas, tutela liminar, condenação em sucumbência e valor da causa).
-
-4. FORMATAÇÃO RIGOROSA DE JURISPRUDÊNCIAS E EMENTAS:
-   - Sempre que citar jurisprudência do STJ ou STF, insira a ementa completa no formato de citação recuada Markdown (iniciando a linha com '> *EMENTA: ...*').
-   - Conclua a ementa com o número do recurso, órgão julgador, relator e data de publicação (ex: > *(REsp n. 1.827.553/RJ, Rel. Ministra Nancy Andrighi, Terceira Turma, DJe 29/08/2019.)*).
+ESTRUTURA FORENSE OBRIGATÓRIA:
+1. ENDEREÇAMENTO FORMAL COMPLETO (Ao Juízo ou Desembargador Presidente competente).
+2. PREÂMBULO E QUALIFICAÇÃO COMPLETA DAS PARTES com fulcro legal preciso.
+3. 1. DOS FATOS E DO CONTEXTO DA LIDE (Narrativa cronológica minuciosa).
+4. 2. DOS PRESSUPOSTOS PROCESSUAIS (Cabimento, Tempestividade, Preparo/Gratuidade, Legitimidade).
+5. 3. DA TUTELA DE URGÊNCIA / EVIDÊNCIA (Art. 300 / 311 do CPC com fumaça do bom direito e perigo de dano).
+6. 4. DO MÉRITO E FUNDAMENTAÇÃO JURÍDICA (Articulação dogmática do CPC, Código Civil, CDC e precedentes vinculantes do STJ/STF).
+7. 5. DOS PEDIDOS E REQUERIMENTOS FINAIS (Itens a, b, c... detalhando tutela, citação, produção probatória, procedência integral, sucumbência e valor da causa).
 """
 
 SUPERPROMPT_ATA_REUNIAO = """
@@ -385,7 +380,6 @@ async def gerar_peticao_stream(
             user_contents.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
             user_contents.append(f"[Documento Anexo: {filename}]")
 
-    # Passa o texto do usuário diretamente
     user_contents.append(instrucao_usuario)
 
     async def stream_generator():
@@ -562,7 +556,6 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 16px;">
           <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 40px 36px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);">
             
-            <!-- Marca / Header -->
             <div style="text-align: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
               <h1 style="color: #0b132b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">
                 AVJURIS<span style="color: #38bdf8;">.AI</span>
@@ -572,7 +565,6 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
               </p>
             </div>
 
-            <!-- Título Principal -->
             <h2 style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
               Documento Jurídico Finalizado
             </h2>
@@ -581,7 +573,6 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
               Prezado(a) Doutor(a), o seu documento <strong>{payload.titulo}</strong> foi compilado e estruturado conforme os padrões forenses da plataforma.
             </p>
 
-            <!-- Card com Dados do Arquivo Anexado -->
             <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
               <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px;">
                 Arquivo Anexo (.DOCX)
@@ -594,14 +585,12 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
               </div>
             </div>
 
-            <!-- CTA / Acesso à Workstation -->
             <div style="text-align: center; margin: 28px 0 24px 0;">
               <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
                 Acessar a Workstation
               </a>
             </div>
 
-            <!-- Rodapé Formal -->
             <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0 16px 0;" />
             <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.5; text-align: center;">
               Atenciosamente,<br>
@@ -661,7 +650,6 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 16px;">
           <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 40px 36px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);">
             
-            <!-- Marca / Header -->
             <div style="text-align: center; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
               <h1 style="color: #0b132b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">
                 AVJURIS<span style="color: #38bdf8;">.AI</span>
@@ -671,7 +659,6 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
               </p>
             </div>
             
-            <!-- Boas-vindas -->
             <h2 style="color: #0f172a; font-size: 18px; font-weight: 700; margin: 0 0 12px 0;">
               Olá, {payload.nome}! Boas-vindas.
             </h2>
@@ -680,7 +667,6 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
               Sua conta foi ativada com sucesso. O <strong>AvJuris.AI</strong> é a sua estação de trabalho forense projetada para elevar a velocidade e o rigor dogmático na redação de peças processuais e atas executivas.
             </p>
             
-            <!-- Caixa de Recursos -->
             <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; border-radius: 8px; padding: 16px 20px; margin: 20px 0 28px 0; border: 1px solid #e2e8f0; border-left-width: 4px;">
               <p style="color: #0f172a; font-size: 13px; margin: 0 0 10px 0; font-weight: 700;">Recursos disponíveis no seu plano:</p>
               <ul style="color: #475569; font-size: 13px; margin: 0; padding-left: 18px; line-height: 1.65;">
@@ -691,14 +677,12 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
               </ul>
             </div>
             
-            <!-- CTA -->
             <div style="text-align: center; margin: 28px 0 24px 0;">
               <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
                 Acessar a Workstation
               </a>
             </div>
             
-            <!-- Rodapé -->
             <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0 16px 0;" />
             <p style="color: #94a3b8; font-size: 11px; margin: 0; line-height: 1.5; text-align: center;">
               Atenciosamente,<br>
