@@ -75,11 +75,14 @@ interface TemplateAtalho {
 interface DetalhesPlanoPricing {
   id: string;
   nome: string;
-  tag: string;
+  tipoUso: string;
+  badgeTopo?: string;
   precoMensal: string;
   precoAnual: string;
   precoAnualTotal: string;
   minutas: number;
+  casos: number;
+  processos: number;
   paginasUpload: number;
   linkAsaas: string;
   destaque?: boolean;
@@ -87,37 +90,45 @@ interface DetalhesPlanoPricing {
 
 const LISTA_PLANOS: DetalhesPlanoPricing[] = [
   {
-    id: "individual_1",
-    nome: "Individual I",
-    tag: "Uso Pessoal",
-    precoMensal: "R$ 69,90",
-    precoAnual: "R$ 55,92",
-    precoAnualTotal: "R$ 671,04 / ano",
+    id: "basico",
+    nome: "Básico",
+    tipoUso: "Uso Individual",
+    precoMensal: "R$ 59,90",
+    precoAnual: "R$ 47,92",
+    precoAnualTotal: "R$ 575,04 / ano",
     minutas: 15,
+    casos: 30,
+    processos: 50,
     paginasUpload: 500,
     linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
     destaque: false
   },
   {
-    id: "individual_2",
-    nome: "Individual II",
-    tag: "Mais Popular",
-    precoMensal: "R$ 129,90",
-    precoAnual: "R$ 103,92",
-    precoAnualTotal: "R$ 1.247,04 / ano",
+    id: "crescimento",
+    nome: "Crescimento",
+    tipoUso: "Uso Individual",
+    badgeTopo: "MAIS POPULAR",
+    precoMensal: "R$ 119,90",
+    precoAnual: "R$ 95,92",
+    precoAnualTotal: "R$ 1.151,04 / ano",
     minutas: 40,
+    casos: 150,
+    processos: 100,
     paginasUpload: 1200,
     linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
     destaque: true
   },
   {
-    id: "individual_3",
-    nome: "Individual III",
-    tag: "Alta Demanda",
-    precoMensal: "R$ 249,90",
-    precoAnual: "R$ 199,92",
-    precoAnualTotal: "R$ 2.399,04 / ano",
+    id: "escala",
+    nome: "Escala",
+    tipoUso: "Multiusuários",
+    badgeTopo: "TREINAMENTO ONLINE",
+    precoMensal: "R$ 229,90",
+    precoAnual: "R$ 183,92",
+    precoAnualTotal: "R$ 2.207,04 / ano",
     minutas: 150,
+    casos: 300,
+    processos: 200,
     paginasUpload: 1500,
     linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
     destaque: false
@@ -689,10 +700,13 @@ export default function Home() {
       };
 
       // 1. Ementa e Citações Jurisprudenciais Recuadas (Recuo de 4cm / pl-16 e Itálico)
-      if (trimmed.startsWith("> ") || trimmed.startsWith("EMENTA:")) {
+      if (trimmed.startsWith("> ") || trimmed.startsWith("EMENTA:") || trimmed.startsWith('"[')) {
         const textoEmenta = trimmed.replace(/^>\s*/, "");
         return (
-          <div key={idx} className="pl-12 sm:pl-16 pr-4 my-4 py-1 text-[13px] italic font-serif text-slate-800 border-l-2 border-slate-300 leading-relaxed text-justify">
+          <div 
+            key={idx} 
+            className="ml-12 sm:ml-16 mr-4 my-4 pl-4 py-1 text-[13px] italic font-serif text-slate-800 border-l-2 border-slate-300 leading-relaxed text-justify bg-slate-50/40 rounded-r-lg"
+          >
             {formatarNegrito(textoEmenta)}
           </div>
         );
@@ -701,7 +715,7 @@ export default function Home() {
       // 2. Endereçamento e Títulos em Destaque Centralizados
       if (
         trimmed.startsWith("# ") ||
-        /^(EXCELENTÍSSIMO|AO DOUTO|AO EGRÉGIO|AGRAVO DE INSTRUMENTO|AÇÃO DECLARATÓRIA|AÇÃO DE COBRANÇA|PETIÇÃO INICIAL)/i.test(trimmed)
+        /^(EXCELENTÍSSIMO|AO DOUTO|AO EGRÉGIO|AGRAVO DE INSTRUMENTO|AÇÃO DECLARATÓRIA|AÇÃO DE COBRANÇA|PETIÇÃO INICIAL|CONTESTAÇÃO)/i.test(trimmed)
       ) {
         return (
           <div key={idx} className="text-center font-bold font-serif text-[14.5px] uppercase text-slate-950 my-4 tracking-wide leading-relaxed">
@@ -1341,7 +1355,7 @@ export default function Home() {
                       <FileCheck2 className="w-3.5 h-3.5 text-blue-600" />
                       <span className="truncate max-w-[170px]">Timbrado: {arquivoTimbrado.name}</span>
                       <button type="button" onClick={() => setArquivoTimbrado(null)} className="text-blue-400 hover:text-red-500 ml-1 cursor-pointer">
-                        <X className="w-3 h-3" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}
@@ -1351,7 +1365,7 @@ export default function Home() {
                       <Paperclip className="w-3 h-3 text-slate-500" />
                       <span className="truncate max-w-[150px]">{file.name}</span>
                       <button type="button" onClick={() => handleRemoveFile(idx)} className="text-slate-400 hover:text-red-500 ml-1 cursor-pointer">
-                        <X className="w-3 h-3" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
@@ -1614,7 +1628,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* VISUALIZADOR DA FOLHA FORENSE A4 ESTILO MINUTA IA */}
+                  {/* VISUALIZADOR DA FOLHA FORENSE A4 */}
                   <div className="relative min-h-[500px]">
                     {modoExibicao === "formatado" ? (
                       <div className="w-full bg-[#FCFCFD] p-8 sm:p-14 border border-slate-200/90 rounded-2xl shadow-inner space-y-4 max-h-[660px] overflow-y-auto">
@@ -1683,14 +1697,12 @@ export default function Home() {
         </main>
       </div>
 
-      {/* =====================================================================
-          MODAL DE ASSINATURA: ETAPA 1 (PRICING GRID) & ETAPA 2 (CHECKOUT)
-      ===================================================================== */}
+      {/* MODAL DE ASSINATURA: ETAPA 1 (PRICING GRID) & ETAPA 2 (CHECKOUT) */}
       {showPricingModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
             
-            {/* ETAPA 1: TABELA DE PREÇOS (PRICING GRID) */}
+            {/* ETAPA 1: TABELA DE PREÇOS (PRICING GRID COM NOMES E VALORES DA LANDING PAGE) */}
             {checkoutStep === "pricing" ? (
               <>
                 <div className="px-8 pt-8 pb-4 text-center relative border-b border-slate-100">
@@ -1707,10 +1719,10 @@ export default function Home() {
                   </div>
                   
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    Planos Individuais & Escritórios
+                    Planos & Assinaturas AvJuris.AI
                   </h2>
                   <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-lg mx-auto">
-                    Acesso completo a petições ilimitadas com fundamentação forense, conexão CNJ e modelo timbrado.
+                    Acesso completo à IA forense de alta densidade, conexão CNJ e modelo timbrado.
                   </p>
 
                   <div className="flex items-center justify-center gap-3 mt-5">
@@ -1735,19 +1747,24 @@ export default function Home() {
                       className={`rounded-2xl p-6 flex flex-col justify-between transition shadow-sm space-y-6 ${
                         plano.destaque 
                           ? "border-2 border-blue-600 bg-gradient-to-b from-blue-50/40 to-white shadow-xl relative" 
-                          : "border border-slate-200 bg-white hover:border-slate-300"
+                          : "border border-slate-200 bg-white hover:border-slate-300 relative"
                       }`}
                     >
-                      {plano.destaque && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-md">
-                          Mais Popular
+                      {/* Badge de Topo Exclusivo (Sem duplicações internas) */}
+                      {plano.badgeTopo && (
+                        <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-0.5 rounded-full shadow-md ${
+                          plano.destaque ? "bg-blue-600" : "bg-[#2563eb]"
+                        }`}>
+                          {plano.badgeTopo}
                         </div>
                       )}
 
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <span className={`font-bold text-base ${plano.destaque ? "text-blue-950" : "text-slate-900"}`}>{plano.nome}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${plano.destaque ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{plano.tag}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${plano.destaque ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
+                            {plano.tipoUso}
+                          </span>
                         </div>
 
                         <div>
@@ -1765,19 +1782,23 @@ export default function Home() {
                         <div className="space-y-2.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span><strong>{plano.minutas} minutas</strong> completas por mês</span>
+                            <span>Crie até <strong>{plano.casos} casos</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>Monitore até <strong>{plano.processos} processos</strong> simultâneos</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>Gere até <strong>{plano.minutas} documentos</strong> por mês</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>Upload de até <strong>{plano.paginasUpload} páginas</strong> ou 150MB</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
                             <span>Exportação em <strong>modelo timbrado (.docx)</strong></span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>Upload de até {plano.paginasUpload} páginas por PDF</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>Conexão CNJ / DataJud oficial</span>
                           </div>
                         </div>
                       </div>
@@ -1798,7 +1819,7 @@ export default function Home() {
                 </div>
               </>
             ) : (
-              /* ETAPA 2: CHECKOUT TRANSPARENTE / DADOS FISCAIS & PAGAMENTO */
+              /* ETAPA 2: CHECKOUT COM COLETA DE DADOS FISCAIS E DIRECIONAMENTO */
               <>
                 <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
                   <button
@@ -1813,7 +1834,7 @@ export default function Home() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-900">Finalizando Assinatura:</span>
                     <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">
-                      {planoSelecionadoCheckout.nome} ({frequenciaPricing === "mensal" ? planoSelecionadoCheckout.precoMensal : planoSelecionadoCheckout.precoAnual}/mês)
+                      Plano {planoSelecionadoCheckout.nome} ({frequenciaPricing === "mensal" ? planoSelecionadoCheckout.precoMensal : planoSelecionadoCheckout.precoAnual}/mês)
                     </span>
                   </div>
 
@@ -1934,7 +1955,6 @@ export default function Home() {
                       <p className="text-xs text-slate-500 mt-0.5">Processamento com criptografia de ponta a ponta via Asaas Gateway.</p>
                     </div>
 
-                    {/* Seleção de Método */}
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -2024,7 +2044,6 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* Botão de Finalização Direta no Gateway */}
                     <a
                       href={planoSelecionadoCheckout.linkAsaas}
                       target="_blank"
