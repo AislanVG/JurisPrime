@@ -325,7 +325,7 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
 
 @app.get("/api/usuario/{user_id}/status")
 async def obter_status_usuario(user_id: str):
-    """Retorna o plano, consumo e datas do ciclo mensal do usuário."""
+    """Retorna o plano e o consumo de cota atual do usuário."""
     hoje = date.today()
     inicio_ciclo = hoje.replace(day=1)
     fim_ciclo = (inicio_ciclo + timedelta(days=32)).replace(day=1) - timedelta(days=1)
@@ -342,6 +342,19 @@ async def obter_status_usuario(user_id: str):
     try:
         res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
         if not res.data or len(res.data) == 0:
+            # Se não existe registro, cria como gratuito por padrão
+            novo_registro = {
+                "user_id": user_id,
+                "plano_id": "gratuito",
+                "status": "active",
+                "documentos_usados_mes": 0,
+                "mes_referencia": str(date.today().replace(day=1))
+            }
+            try:
+                supabase.table("assinaturas").insert(novo_registro).execute()
+            except Exception:
+                pass
+
             return {
                 "plano": "Gratuito",
                 "usados": 0,
@@ -352,10 +365,19 @@ async def obter_status_usuario(user_id: str):
 
         assinatura = res.data[0]
         plano = assinatura.get("planos") or {}
+        
+        # Se o plano estiver vazio ou mapeado como básico antigo sem pagamento, força Gratuito
+        nome_plano = plano.get("nome", "Gratuito")
+        max_docs = plano.get("max_documentos_mes", 5)
+        
+        if nome_plano.lower() in ("básico", "basico") and assinatura.get("plano_id") not in ("individual_1", "individual_2", "individual_3", "crescimento", "escala"):
+            nome_plano = "Gratuito"
+            max_docs = 5
+
         return {
-            "plano": plano.get("nome", "Gratuito"),
+            "plano": nome_plano,
             "usados": assinatura.get("documentos_usados_mes", 0),
-            "maximo": plano.get("max_documentos_mes", 5),
+            "maximo": max_docs,
             "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
             "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y")
         }
@@ -368,7 +390,6 @@ async def obter_status_usuario(user_id: str):
             "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y"),
             "erro": str(e)
         }
-
 
 @app.get("/api/documentos/{user_id}")
 async def listar_documentos_usuario(user_id: str):
