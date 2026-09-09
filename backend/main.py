@@ -207,20 +207,32 @@ def consultar_datajud(numero_processo: str, tribunal: str = "tjsp") -> Optional[
 
 
 # =====================================================================
-# 3. PROMPTS FORENSES
+# 3. PROMPTS FORENSES DE ALTA DENSIDADE (PADRÃO TRIBUNAIS SUPERIORES)
 # =====================================================================
 
 SUPERPROMPT_PETICAO_1GRAU = """
-Você é um Advogado Sênior e Especialista em Direito Processual Civil e Prática Forense de 1º Grau.
-Sua missão é redigir uma PETIÇÃO INICIAL DE 1º GRAU (ou Peça Processual Técnica) completa, exaustiva, de alta densidade jurídica e pronta para protocolo (meta de 2.000 a 3.500 palavras).
+Você é um Advogado Sênior e Especialista em Prática Forense e Direito Processual Civil.
+Sua missão é redigir uma PEÇA PROCESSUAL COMPLETA, PROFISSIONAL, EXAUSTIVA E PRONTA PARA PROTOCOLO (meta de 2.500 a 4.000 palavras).
 
-DIRETRIZES TÉCNICAS E FORENSES:
-1. ENDEREÇAMENTO PRECISO: Ao d. Juízo da Vara Cível / Juizado Especial da Comarca competente.
-2. QUALIFICAÇÃO DAS PARTES: Formato forense completo com indicação de requerimento de benefícios (Justiça Gratuita, Prioridade de Tramitação, se aplicável).
-3. FATOS CRONOLÓGICOS E PORMENORIZADOS: Narrativa estruturada e clara, indicando a relação jurídica, conduta lesiva, dano e nexo causal.
-4. TUTELA DE URGÊNCIA / EVIDÊNCIA (Art. 300 / 311 do CPC): Se solicitada ou aplicável, fundamente exaustivamente a probabilidade do direito (fumus boni iuris) e o perigo de dano (periculum in mora), com pedido liminar expresso inaudita altera parte.
-5. FUNDAMENTAÇÃO JURÍDICA ROBUSTA: Articulação do Código Civil, CPC, CDC e precedentes consolidados (Súmulas e Temas Repetitivos do STJ/STF).
-6. PEDIDOS E REQUERIMENTOS FINAIS: Relação minuciosa com citações, produção de provas, inversão do ônus da prova, procedência integral, condenação em custas/sucumbência e valor da causa.
+DIRETRIZES ESTRUTURAIS OBRIGATÓRIAS:
+1. ENDEREÇAMENTO FORMAL:
+   EXCELENTÍSSIMO SENHOR DOUTOR JUIZ DE DIREITO DA [NÚMERO] VARA CÍVEL DA COMARCA DE [CIDADE/ESTADO]
+   (Ou ao Tribunal ad quem se for recurso, com Processo de Origem, Vara de Origem, Agravante e Agravado).
+
+2. PREÂMBULO E QUALIFICAÇÃO COMPLETA:
+   [NOME DA PARTE], qualificação forense completa, por seu advogado infra-assinado, com fundamento nos arts. 319 e seguintes do CPC (ou 1.015 do CPC para recursos), vem perante V. Exa. propor/interpor a presente:
+   [NOME DA PEÇA EM CAIXA ALTA E NEGRITO]
+
+3. ESTRUTURAÇÃO NUMERADA EM TÓPICOS:
+   1. DOS FATOS CRONOLÓGICOS (Narrativa fática detalhada, indicando nexo causal e dano).
+   2. DOS PRESSUPOSTOS PROCESSUAIS / PRELIMINARES (Cabimento, Tempestividade, Preparo/Gratuidade, Legitimidade).
+   3. DA TUTELA DE URGÊNCIA (Se aplicável: probabilidade do direito e perigo de dano fundamentados no Art. 300 do CPC).
+   4. DO DIREITO E FUNDAMENTAÇÃO DOGMÁTICA (Articulação minuciosa do Código Civil, CDC, CPC e teses pacificadas).
+   5. DOS PEDIDOS E REQUERIMENTOS FINAIS (Relação alfabética a, b, c... com citações, provas, tutela liminar, condenação em sucumbência e valor da causa).
+
+4. FORMATAÇÃO RIGOROSA DE JURISPRUDÊNCIAS E EMENTAS:
+   - Sempre que citar jurisprudência do STJ ou STF, insira a ementa completa no formato de citação recuada Markdown (iniciando a linha com '> *EMENTA: ...*').
+   - Conclua a ementa com o número do recurso, órgão julgador, relator e data de publicação (ex: > *(REsp n. 1.827.553/RJ, Rel. Ministra Nancy Andrighi, Terceira Turma, DJe 29/08/2019.)*).
 """
 
 SUPERPROMPT_ATA_REUNIAO = """
@@ -270,20 +282,30 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.5
 
-        if texto.startswith("# "):
+        # Citação de Ementa / Jurisprudência (Recuo de 4 cm e fonte 10.5)
+        if texto.startswith("> "):
+            texto_limpo = texto.replace("> ", "").replace("*", "")
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p.paragraph_format.left_indent = Inches(1.57)  # ~4 cm
+            p.paragraph_format.first_line_indent = Inches(0)
+            p.paragraph_format.line_spacing = 1.15
+            run = p.add_run(texto_limpo)
+            run.italic = True
+            run.font.size = Pt(10.5)
+        elif texto.startswith("# "):
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(texto.replace("# ", ""))
+            run = p.add_run(texto.replace("# ", "").replace("*", ""))
             run.bold = True
-            run.font.size = Pt(14)
+            run.font.size = Pt(13)
         elif texto.startswith("## ") or texto.startswith("### "):
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            run = p.add_run(texto.replace("## ", "").replace("### ", ""))
+            run = p.add_run(texto.replace("## ", "").replace("### ", "").replace("*", ""))
             run.bold = True
             run.font.size = Pt(12)
         else:
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             p.paragraph_format.first_line_indent = Inches(0.78)
-            p.add_run(texto)
+            p.add_run(re.sub(r'\*\*(.*?)\*\*', r'\1', texto))
 
     buffer = io.BytesIO()
     doc.save(buffer)
