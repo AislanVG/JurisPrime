@@ -492,7 +492,6 @@ export default function Home() {
     setResultadoTexto(doc.conteudo_markdown);
   };
 
-  // Paywall de Cópia: Bloqueia no plano gratuito e alerta para upgrade
   const handleCopiarTexto = () => {
     if (!resultadoTexto) return;
     if (statusPlano.plano.toLowerCase() === "gratuito" || statusPlano.plano.toLowerCase() === "básico" || statusPlano.plano.toLowerCase() === "basico") {
@@ -508,6 +507,19 @@ export default function Home() {
   const handleAbrirCheckoutPlano = (plano: DetalhesPlanoPricing) => {
     setPlanoSelecionadoCheckout(plano);
     setCheckoutStep("checkout");
+
+    // Registra intenção e dispara e-mail de relacionamento (Inside Sales / Carrinho Abandonado)
+    if (user?.email) {
+      fetch(`${API_BASE_URL}/api/usuario/recuperacao-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destinatario: user.email,
+          nome: getUserName(),
+          plano_nome: plano.nome
+        })
+      }).catch((e) => console.log("Log checkout:", e));
+    }
   };
 
   const handleExecutarIA = async () => {
@@ -1355,7 +1367,7 @@ export default function Home() {
                       <FileCheck2 className="w-3.5 h-3.5 text-blue-600" />
                       <span className="truncate max-w-[170px]">Timbrado: {arquivoTimbrado.name}</span>
                       <button type="button" onClick={() => setArquivoTimbrado(null)} className="text-blue-400 hover:text-red-500 ml-1 cursor-pointer">
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-3 h-3" />
                       </button>
                     </div>
                   )}
@@ -1365,7 +1377,7 @@ export default function Home() {
                       <Paperclip className="w-3 h-3 text-slate-500" />
                       <span className="truncate max-w-[150px]">{file.name}</span>
                       <button type="button" onClick={() => handleRemoveFile(idx)} className="text-slate-400 hover:text-red-500 ml-1 cursor-pointer">
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-3 h-3" />
                       </button>
                     </div>
                   ))}
@@ -1477,7 +1489,7 @@ export default function Home() {
                 </div>
               )}
 
-              {/* PAINEL DIREITO: FOLHA FORENSE A4 ESTILO MINUTA IA */}
+              {/* PAINEL DIREITO: FOLHA FORENSE A4 */}
               <div className={`${painelEsquerdoAberto ? "lg:col-span-8" : "lg:col-span-12"} bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto relative transition-all duration-300`}>
                 <div>
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
@@ -1750,7 +1762,6 @@ export default function Home() {
                           : "border border-slate-200 bg-white hover:border-slate-300 relative"
                       }`}
                     >
-                      {/* Badge de Topo Exclusivo (Sem duplicações internas) */}
                       {plano.badgeTopo && (
                         <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-0.5 rounded-full shadow-md ${
                           plano.destaque ? "bg-blue-600" : "bg-[#2563eb]"
