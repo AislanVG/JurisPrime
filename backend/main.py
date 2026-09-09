@@ -4,7 +4,7 @@ import json
 import io
 import asyncio
 import base64
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 
 import requests
@@ -36,17 +36,15 @@ CNJ_API_KEY = os.getenv("CNJ_API_KEY", "")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY", "")
 
-# --- VARIÁVEIS DE E-MAIL (RESEND / API HTTP) ---
+# --- VARIÁVEIS DE E-MAIL ---
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 EMAIL_SENDER = os.getenv("EMAIL_SENDER", "AvJuris.AI <onboarding@resend.dev>")
 
-# --- CLIENTE SUPABASE ADMIN ---
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
-# --- MODELOS PYDANTIC ---
 class EmailDocumentoRequest(BaseModel):
     destinatario: str
     titulo: str = "Documento_AvJuris"
@@ -59,7 +57,7 @@ class EmailBoasVindasRequest(BaseModel):
 
 
 # =====================================================================
-# 1. FUNÇÕES DE SUPABASE: COTAS E HISTÓRICO DE DOCUMENTOS
+# 1. GESTÃO DE ASSINATURA: PLANO GRATUITO PADRÃO & CICLO
 # =====================================================================
 
 def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple[str, bytes]] = None):
@@ -71,7 +69,7 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
         if not res.data or len(res.data) == 0:
             novo_registro = {
                 "user_id": user_id,
-                "plano_id": "basico",
+                "plano_id": "gratuito",
                 "status": "active",
                 "documentos_usados_mes": 0,
                 "mes_referencia": str(date.today().replace(day=1))
@@ -84,10 +82,10 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
 
         if not plano:
             plano = {
-                "nome": "Básico",
-                "max_documentos_mes": 15,
-                "max_paginas_upload": 500,
-                "max_mb_arquivo": 150
+                "nome": "Gratuito",
+                "max_documentos_mes": 5,
+                "max_paginas_upload": 100,
+                "max_mb_arquivo": 50
             }
 
         mes_atual = str(date.today().replace(day=1))
@@ -99,43 +97,17 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
             assinatura["documentos_usados_mes"] = 0
 
         docs_usados = assinatura.get("documentos_usados_mes", 0)
-        max_docs = plano.get("max_documentos_mes", 15)
+        max_docs = plano.get("max_documentos_mes", 5)
         if docs_usados >= max_docs:
             raise HTTPException(
                 status_code=403,
-                detail=f"Limite mensal de {max_docs} documentos atingido para o plano {plano.get('nome')}. Realize um upgrade de plano."
+                detail=f"Limite mensal de {max_docs} minutas atingido para o plano {plano.get('nome')}. Assine um plano para continuar gerando."
             )
-
-        if arquivos_bytes:
-            total_paginas = 0
-            max_mb = plano.get("max_mb_arquivo", 150)
-            max_pags = plano.get("max_paginas_upload", 500)
-
-            for filename, raw_bytes in arquivos_bytes:
-                tamanho_mb = len(raw_bytes) / (1024 * 1024)
-                if tamanho_mb > max_mb:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"O arquivo '{filename}' possui {tamanho_mb:.1f}MB e excede o limite de {max_mb}MB do plano {plano.get('nome')}."
-                    )
-
-                if filename.lower().endswith(".pdf"):
-                    try:
-                        reader = PdfReader(io.BytesIO(raw_bytes))
-                        total_paginas += len(reader.pages)
-                    except Exception:
-                        pass
-
-            if total_paginas > max_pags:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"O total de {total_paginas} páginas enviadas excede o limite de {max_pags} páginas do plano {plano.get('nome')}."
-                )
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Aviso de validação de assinatura: {str(e)}")
+        print(f"Aviso cota: {str(e)}")
 
 
 def registrar_incremento_documento(user_id: Optional[str]):
@@ -147,17 +119,10 @@ def registrar_incremento_documento(user_id: Optional[str]):
             atual = res.data.get("documentos_usados_mes", 0)
             supabase.table("assinaturas").update({"documentos_usados_mes": atual + 1}).eq("user_id", user_id).execute()
     except Exception as e:
-        print(f"Erro ao incrementar consumo de documento: {str(e)}")
+        print(f"Erro incremento: {str(e)}")
 
 
-def salvar_documento_banco(
-    user_id: Optional[str],
-    titulo: str,
-    tipo: str,
-    conteudo: str,
-    instrucao: str = "",
-    tribunal: str = ""
-):
+def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conteudo: str, instrucao: str = "", tribunal: str = ""):
     if not user_id or not supabase:
         return
     try:
@@ -170,7 +135,7 @@ def salvar_documento_banco(
             "tribunal": tribunal
         }).execute()
     except Exception as e:
-        print(f"Erro ao persistir documento no Supabase: {str(e)}")
+        print(f"Erro persistência: {str(e)}")
 
 
 # =====================================================================
@@ -207,7 +172,7 @@ def consultar_datajud(numero_processo: str, tribunal: str = "tjsp") -> Optional[
 
 
 # =====================================================================
-# 3. PROMPTS FORENSES DE ALTA DENSIDADE (PADRÃO TRIBUNAIS SUPERIORES)
+# 3. SUPERPROMPT FORENSE INTEGRAL
 # =====================================================================
 
 SUPERPROMPT_PETICAO_1GRAU = """
@@ -225,7 +190,7 @@ Sua missão é redigir uma PEÇA PROCESSUAL INTEGRAL (Petição Inicial, Agravo 
 ### 🏛️ PADRÃO VERNÁCULO, SOBRIEDADE E DIALETICIDADE
 1. NEUTRALIDADE E TÉCNICA PROCESSUAL:
    - É expressamente proibido o uso de adjetivações vazias, ataques pessoais ou termos passionais contra a parte contrária ou o magistrado.
-   - A impugnação à decisão agravada/recorrida ou à conduta da ré deve focar estritamente no erro de julgamento (*error in judicando* ou *error in procedendo*) e na ausência de lastro probatório e normativo.
+   - A impugnação à decisão agravada/recorrida ou à conduta da ré deve focar estritamente no erro de julgamento (error in judicando ou error in procedendo) e na ausência de lastro probatório e normativo.
 2. LATINISMOS E FORMATAÇÃO:
    - Termos em latim devem vir sempre em itálico (*inaudita altera parte*, *fumus boni iuris*, *periculum in mora*, *in re ipsa*, *secundum eventum litis*).
    - NÃO use marcadores de negrito '**' soltos ou asteriscos no meio de frases ordinárias.
@@ -276,6 +241,7 @@ Sua missão é redigir uma PEÇA PROCESSUAL INTEGRAL (Petição Inicial, Agravo 
      e) protestar pela produção de todas as provas em direito admitidas.
    - Indicação de local, data e campo de assinatura do advogado com inscrição na OAB.
 """
+
 SUPERPROMPT_ATA_REUNIAO = """
 Você é um Secretário Jurídico Executivo e Consultor em Gestão Legal de Alto Desempenho.
 Sua missão é processar a gravação de áudio da reunião e gerar uma ATA EXECUTIVA FORMAL completa, precisa e estruturada.
@@ -293,7 +259,7 @@ ESTRUTURA OBRIGATÓRIA DA ATA:
 
 
 # =====================================================================
-# 4. FUNÇÃO AUXILIAR DE COMPILAÇÃO DOCX (ABNT FORENSE)
+# 4. COMPILAÇÃO DOCX ABNT
 # =====================================================================
 
 def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional[bytes] = None) -> io.BytesIO:
@@ -302,10 +268,10 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
     else:
         doc = Document()
         for section in doc.sections:
-            section.top_margin = Inches(1.18)     # 3 cm
-            section.left_margin = Inches(1.18)    # 3 cm
-            section.right_margin = Inches(0.78)   # 2 cm
-            section.bottom_margin = Inches(0.78)  # 2 cm
+            section.top_margin = Inches(1.18)
+            section.left_margin = Inches(1.18)
+            section.right_margin = Inches(0.78)
+            section.bottom_margin = Inches(0.78)
 
     style = doc.styles['Normal']
     font = style.font
@@ -323,11 +289,10 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.5
 
-        # Citação de Ementa / Jurisprudência (Recuo de 4 cm e fonte 10.5)
         if texto.startswith("> ") or texto.startswith("EMENTA:"):
             texto_limpo = texto.replace("> ", "").replace("*", "")
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            p.paragraph_format.left_indent = Inches(1.57)  # ~4 cm
+            p.paragraph_format.left_indent = Inches(1.57)
             p.paragraph_format.first_line_indent = Inches(0)
             p.paragraph_format.line_spacing = 1.15
             run = p.add_run(texto_limpo)
@@ -360,29 +325,53 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
 
 @app.get("/api/usuario/{user_id}/status")
 async def obter_status_usuario(user_id: str):
-    """Retorna o plano e o consumo de cota atual do usuário."""
+    """Retorna o plano, consumo e datas do ciclo mensal do usuário."""
+    hoje = date.today()
+    inicio_ciclo = hoje.replace(day=1)
+    fim_ciclo = (inicio_ciclo + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
     if not supabase:
-        return {"plano": "Básico", "usados": 0, "maximo": 15}
+        return {
+            "plano": "Gratuito",
+            "usados": 0,
+            "maximo": 5,
+            "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+            "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y")
+        }
 
     try:
         res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
         if not res.data or len(res.data) == 0:
-            return {"plano": "Básico", "usados": 0, "maximo": 15}
+            return {
+                "plano": "Gratuito",
+                "usados": 0,
+                "maximo": 5,
+                "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+                "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y")
+            }
 
         assinatura = res.data[0]
         plano = assinatura.get("planos") or {}
         return {
-            "plano": plano.get("nome", "Básico"),
+            "plano": plano.get("nome", "Gratuito"),
             "usados": assinatura.get("documentos_usados_mes", 0),
-            "maximo": plano.get("max_documentos_mes", 15)
+            "maximo": plano.get("max_documentos_mes", 5),
+            "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+            "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y")
         }
     except Exception as e:
-        return {"plano": "Básico", "usados": 0, "maximo": 15, "erro": str(e)}
+        return {
+            "plano": "Gratuito",
+            "usados": 0,
+            "maximo": 5,
+            "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+            "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y"),
+            "erro": str(e)
+        }
 
 
 @app.get("/api/documentos/{user_id}")
 async def listar_documentos_usuario(user_id: str):
-    """Lista o histórico de petições e atas criadas pelo usuário."""
     if not supabase:
         return []
     try:
@@ -413,14 +402,12 @@ async def gerar_peticao_stream(
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_contents = []
 
-    # Integração com DataJud/CNJ se houver numeração processual
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
             user_contents.append(dados_cnj)
 
-    # Anexos em PDF
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_contents.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
@@ -569,12 +556,11 @@ async def exportar_docx(
 
 
 # =====================================================================
-# 6. ROTAS DE DISPARO DE E-MAIL (RESEND API HTTP - PORTA 443 HTTPS)
+# 6. DISPARO DE E-MAIL (RESEND API HTTP)
 # =====================================================================
 
 @app.post("/api/ata/enviar-email")
 async def enviar_email_documento(payload: EmailDocumentoRequest):
-    """Envia o documento formatado em anexo .docx com layout forense corporativo via Resend."""
     if not RESEND_API_KEY:
         raise HTTPException(
             status_code=500,
@@ -675,7 +661,6 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
 
 @app.post("/api/usuario/onboarding")
 async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
-    """Envia o e-mail de boas-vindas com template HTML via API HTTP do Resend."""
     if not RESEND_API_KEY:
         return {"status": "ignorado", "motivo": "RESEND_API_KEY ausente"}
 
