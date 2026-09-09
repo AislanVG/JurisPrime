@@ -186,26 +186,6 @@ export default function Home() {
   const [helpActiveTab, setHelpActiveTab] = useState<"peticoes" | "datajud" | "atajur" | "timbrado" | "seguranca">("peticoes");
   const [frequenciaPricing, setFrequenciaPricing] = useState<"mensal" | "anual">("mensal");
 
-  // Etapa do Checkout: 'pricing' (tabela) ou 'checkout' (dados fiscais e pagamento)
-  const [checkoutStep, setCheckoutStep] = useState<"pricing" | "checkout">("pricing");
-  const [planoSelecionadoCheckout, setPlanoSelecionadoCheckout] = useState<DetalhesPlanoPricing>(LISTA_PLANOS[1]);
-  const [tipoDocumentoFiscal, setTipoDocumentoFiscal] = useState<"cpf" | "cnpj">("cpf");
-  const [metodoPagamento, setMetodoPagamento] = useState<"cartao" | "pix" | "boleto">("cartao");
-  
-  // Campos de Dados Fiscais e Pagamento
-  const [docFiscal, setDocFiscal] = useState("");
-  const [cep, setCep] = useState("");
-  const [logradouro, setLogradouro] = useState("");
-  const [numeroEnd, setNumeroEnd] = useState("");
-  const [bairro, setBairro] = useState("");
-  const [cidade, setCidade] = useState("");
-  const [uf, setUf] = useState("MS");
-
-  const [cartaoNumero, setCartaoNumero] = useState("");
-  const [cartaoNome, setCartaoNome] = useState("");
-  const [cartaoValidade, setCartaoValidade] = useState("");
-  const [cartaoCvc, setCartaoCvc] = useState("");
-
   const [moduloSelecionado, setModuloSelecionado] = useState<"peticao" | "ata">("peticao");
   const [modoExibicao, setModoExibicao] = useState<"formatado" | "editor">("formatado");
   const [painelEsquerdoAberto, setPainelEsquerdoAberto] = useState(true);
@@ -504,11 +484,8 @@ export default function Home() {
     setTimeout(() => setCopiado(false), 2000);
   };
 
-  const handleAbrirCheckoutPlano = (plano: DetalhesPlanoPricing) => {
-    setPlanoSelecionadoCheckout(plano);
-    setCheckoutStep("checkout");
-
-    // Registra intenção e dispara e-mail de relacionamento (Inside Sales / Carrinho Abandonado)
+  // Direcionamento direto para o Asaas + Disparo de Carrinho Abandonado em segundo plano
+  const handleSelecionarPlanoAsaas = (plano: DetalhesPlanoPricing) => {
     if (user?.email) {
       fetch(`${API_BASE_URL}/api/usuario/recuperacao-checkout`, {
         method: "POST",
@@ -520,6 +497,9 @@ export default function Home() {
         })
       }).catch((e) => console.log("Log checkout:", e));
     }
+
+    window.open(plano.linkAsaas, "_blank");
+    setShowPricingModal(false);
   };
 
   const handleExecutarIA = async () => {
@@ -961,10 +941,7 @@ export default function Home() {
             {paywallToast}
           </div>
           <button
-            onClick={() => {
-              setCheckoutStep("pricing");
-              setShowPricingModal(true);
-            }}
+            onClick={() => setShowPricingModal(true)}
             className="ml-2 text-[11px] bg-white text-red-600 px-2.5 py-1 rounded-lg font-bold hover:bg-slate-100 transition shadow-sm cursor-pointer"
           >
             Assinar ➔
@@ -1052,7 +1029,6 @@ export default function Home() {
                 type="button"
                 onClick={() => {
                   setShowPopoverConsumo(false);
-                  setCheckoutStep("pricing");
                   setShowPricingModal(true);
                 }}
                 className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
@@ -1150,10 +1126,7 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => {
-                setCheckoutStep("pricing");
-                setShowPricingModal(true);
-              }}
+              onClick={() => setShowPricingModal(true)}
               className="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs rounded-lg transition shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -1709,366 +1682,122 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL DE ASSINATURA: ETAPA 1 (PRICING GRID) & ETAPA 2 (CHECKOUT) */}
+      {/* MODAL DE ASSINATURA: TABELA DE PREÇOS (DIRECIONAMENTO DIRETO AO ASAAS) */}
       {showPricingModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
             
-            {/* ETAPA 1: TABELA DE PREÇOS (PRICING GRID COM NOMES E VALORES DA LANDING PAGE) */}
-            {checkoutStep === "pricing" ? (
-              <>
-                <div className="px-8 pt-8 pb-4 text-center relative border-b border-slate-100">
-                  <button 
-                    onClick={() => setShowPricingModal(false)} 
-                    className="absolute right-6 top-6 text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                  
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-full mb-3">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Escolha o plano ideal para a sua banca</span>
-                  </div>
-                  
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    Planos & Assinaturas AvJuris.AI
-                  </h2>
-                  <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-lg mx-auto">
-                    Acesso completo à IA forense de alta densidade, conexão CNJ e modelo timbrado.
-                  </p>
+            <div className="px-8 pt-8 pb-4 text-center relative border-b border-slate-100">
+              <button 
+                onClick={() => setShowPricingModal(false)} 
+                className="absolute right-6 top-6 text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-full mb-3">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Escolha o plano ideal para a sua banca</span>
+              </div>
+              
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Planos & Assinaturas AvJuris.AI
+              </h2>
+              <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-lg mx-auto">
+                Acesso completo à IA forense de alta densidade, conexão CNJ e modelo timbrado.
+              </p>
 
-                  <div className="flex items-center justify-center gap-3 mt-5">
-                    <span className={`text-xs font-bold ${frequenciaPricing === "mensal" ? "text-slate-900" : "text-slate-400"}`}>Mensal</span>
-                    <button
-                      type="button"
-                      onClick={() => setFrequenciaPricing(frequenciaPricing === "mensal" ? "anual" : "mensal")}
-                      className="w-12 h-6 bg-slate-900 rounded-full p-1 flex items-center transition cursor-pointer"
-                    >
-                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${frequenciaPricing === "anual" ? "translate-x-6 bg-[#38BDF8]" : ""}`}></div>
-                    </button>
-                    <span className={`text-xs font-bold flex items-center gap-1.5 ${frequenciaPricing === "anual" ? "text-slate-900" : "text-slate-400"}`}>
-                      Anual <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">20% OFF</span>
-                    </span>
-                  </div>
-                </div>
+              <div className="flex items-center justify-center gap-3 mt-5">
+                <span className={`text-xs font-bold ${frequenciaPricing === "mensal" ? "text-slate-900" : "text-slate-400"}`}>Mensal</span>
+                <button
+                  type="button"
+                  onClick={() => setFrequenciaPricing(frequenciaPricing === "mensal" ? "anual" : "mensal")}
+                  className="w-12 h-6 bg-slate-900 rounded-full p-1 flex items-center transition cursor-pointer"
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${frequenciaPricing === "anual" ? "translate-x-6 bg-[#38BDF8]" : ""}`}></div>
+                </button>
+                <span className={`text-xs font-bold flex items-center gap-1.5 ${frequenciaPricing === "anual" ? "text-slate-900" : "text-slate-400"}`}>
+                  Anual <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">20% OFF</span>
+                </span>
+              </div>
+            </div>
 
-                <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {LISTA_PLANOS.map((plano) => (
-                    <div 
-                      key={plano.id}
-                      className={`rounded-2xl p-6 flex flex-col justify-between transition shadow-sm space-y-6 ${
-                        plano.destaque 
-                          ? "border-2 border-blue-600 bg-gradient-to-b from-blue-50/40 to-white shadow-xl relative" 
-                          : "border border-slate-200 bg-white hover:border-slate-300 relative"
-                      }`}
-                    >
-                      {plano.badgeTopo && (
-                        <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-0.5 rounded-full shadow-md ${
-                          plano.destaque ? "bg-blue-600" : "bg-[#2563eb]"
-                        }`}>
-                          {plano.badgeTopo}
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className={`font-bold text-base ${plano.destaque ? "text-blue-950" : "text-slate-900"}`}>{plano.nome}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${plano.destaque ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
-                            {plano.tipoUso}
-                          </span>
-                        </div>
-
-                        <div>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-black text-slate-950">
-                              {frequenciaPricing === "mensal" ? plano.precoMensal : plano.precoAnual}
-                            </span>
-                            <span className="text-xs text-slate-400 font-semibold">/mês</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 mt-1">
-                            Cobrado {frequenciaPricing === "mensal" ? "mensalmente" : `anualmente (${plano.precoAnualTotal})`}
-                          </p>
-                        </div>
-
-                        <div className="space-y-2.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>Crie até <strong>{plano.casos} casos</strong></span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>Monitore até <strong>{plano.processos} processos</strong> simultâneos</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>Gere até <strong>{plano.minutas} documentos</strong> por mês</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>Upload de até <strong>{plano.paginasUpload} páginas</strong> ou 150MB</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>Exportação em <strong>modelo timbrado (.docx)</strong></span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAbrirCheckoutPlano(plano)}
-                        className={`w-full py-2.5 font-bold text-xs rounded-xl transition text-center shadow-sm cursor-pointer ${
-                          plano.destaque 
-                            ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30" 
-                            : "bg-slate-900 hover:bg-slate-800 text-white"
-                        }`}
-                      >
-                        Assinar {plano.nome} ➔
-                      </button>
+            <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+              {LISTA_PLANOS.map((plano) => (
+                <div 
+                  key={plano.id}
+                  className={`rounded-2xl p-6 flex flex-col justify-between transition shadow-sm space-y-6 ${
+                    plano.destaque 
+                      ? "border-2 border-blue-600 bg-gradient-to-b from-blue-50/40 to-white shadow-xl relative" 
+                      : "border border-slate-200 bg-white hover:border-slate-300 relative"
+                  }`}
+                >
+                  {plano.badgeTopo && (
+                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-0.5 rounded-full shadow-md ${
+                      plano.destaque ? "bg-blue-600" : "bg-[#2563eb]"
+                    }`}>
+                      {plano.badgeTopo}
                     </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              /* ETAPA 2: CHECKOUT COM COLETA DE DADOS FISCAIS E DIRECIONAMENTO */
-              <>
-                <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className={`font-bold text-base ${plano.destaque ? "text-blue-950" : "text-slate-900"}`}>{plano.nome}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${plano.destaque ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
+                        {plano.tipoUso}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-black text-slate-950">
+                          {frequenciaPricing === "mensal" ? plano.precoMensal : plano.precoAnual}
+                        </span>
+                        <span className="text-xs text-slate-400 font-semibold">/mês</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Cobrado {frequenciaPricing === "mensal" ? "mensalmente" : `anualmente (${plano.precoAnualTotal})`}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Crie até <strong>{plano.casos} casos</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Monitore até <strong>{plano.processos} processos</strong> simultâneos</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Gere até <strong>{plano.minutas} documentos</strong> por mês</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Upload de até <strong>{plano.paginasUpload} páginas</strong> ou 150MB</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Exportação em <strong>modelo timbrado (.docx)</strong></span>
+                      </div>
+                    </div>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => setCheckoutStep("pricing")}
-                    className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+                    onClick={() => handleSelecionarPlanoAsaas(plano)}
+                    className={`w-full py-2.5 font-bold text-xs rounded-xl transition text-center shadow-sm cursor-pointer ${
+                      plano.destaque 
+                        ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30" 
+                        : "bg-slate-900 hover:bg-slate-800 text-white"
+                    }`}
                   >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Voltar aos Planos</span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">Finalizando Assinatura:</span>
-                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">
-                      Plano {planoSelecionadoCheckout.nome} ({frequenciaPricing === "mensal" ? planoSelecionadoCheckout.precoMensal : planoSelecionadoCheckout.precoAnual}/mês)
-                    </span>
-                  </div>
-
-                  <button 
-                    onClick={() => setShowPricingModal(false)} 
-                    className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
+                    Assinar {plano.nome} ➔
                   </button>
                 </div>
-
-                <div className="p-8 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
-                  
-                  {/* Coluna Esquerda: Dados Fiscais */}
-                  <div className="lg:col-span-6 space-y-5">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900">Dados Fiscais</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Informações para emissão da nota fiscal eletrônica de serviços (NFS-e).</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setTipoDocumentoFiscal("cpf")}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                          tipoDocumentoFiscal === "cpf" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        Pessoa Física (CPF)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTipoDocumentoFiscal("cnpj")}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                          tipoDocumentoFiscal === "cnpj" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        Sociedade de Advogados (CNPJ)
-                      </button>
-                    </div>
-
-                    <div className="space-y-3 text-xs">
-                      <div>
-                        <label className="block font-semibold text-slate-700 mb-1">
-                          {tipoDocumentoFiscal === "cpf" ? "CPF do Titular *" : "CNPJ da Banca/Escritório *"}
-                        </label>
-                        <input
-                          type="text"
-                          placeholder={tipoDocumentoFiscal === "cpf" ? "000.000.000-00" : "00.000.000/0001-00"}
-                          value={docFiscal}
-                          onChange={(e) => setDocFiscal(e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="col-span-1">
-                          <label className="block font-semibold text-slate-700 mb-1">CEP *</label>
-                          <input
-                            type="text"
-                            placeholder="79000-000"
-                            value={cep}
-                            onChange={(e) => setCep(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block font-semibold text-slate-700 mb-1">Logradouro / Rua *</label>
-                          <input
-                            type="text"
-                            placeholder="Av. Afonso Pena"
-                            value={logradouro}
-                            onChange={(e) => setLogradouro(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">Número *</label>
-                          <input
-                            type="text"
-                            placeholder="1234"
-                            value={numeroEnd}
-                            onChange={(e) => setNumeroEnd(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">Bairro *</label>
-                          <input
-                            type="text"
-                            placeholder="Centro"
-                            value={bairro}
-                            onChange={(e) => setBairro(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">Cidade / UF *</label>
-                          <input
-                            type="text"
-                            placeholder="Campo Grande"
-                            value={cidade}
-                            onChange={(e) => setCidade(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Coluna Direita: Dados de Pagamento */}
-                  <div className="lg:col-span-6 space-y-5">
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900">Forma de Pagamento</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Processamento com criptografia de ponta a ponta via Asaas Gateway.</p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setMetodoPagamento("cartao")}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                          metodoPagamento === "cartao" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        <CreditCard className="w-3.5 h-3.5" />
-                        <span>Cartão de Crédito</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMetodoPagamento("pix")}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                          metodoPagamento === "pix" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                        <span>Pix Instantâneo</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMetodoPagamento("boleto")}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                          metodoPagamento === "boleto" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        <Barcode className="w-3.5 h-3.5" />
-                        <span>Boleto</span>
-                      </button>
-                    </div>
-
-                    {metodoPagamento === "cartao" ? (
-                      <div className="space-y-3 text-xs">
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">Número do Cartão *</label>
-                          <input
-                            type="text"
-                            placeholder="0000 0000 0000 0000"
-                            value={cartaoNumero}
-                            onChange={(e) => setCartaoNumero(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block font-semibold text-slate-700 mb-1">Nome Impresso no Cartão *</label>
-                          <input
-                            type="text"
-                            placeholder="NOME COMO ESTÁ NO CARTÃO"
-                            value={cartaoNome}
-                            onChange={(e) => setCartaoNome(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 uppercase"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block font-semibold text-slate-700 mb-1">Validade (MM/AA) *</label>
-                            <input
-                              type="text"
-                              placeholder="MM/AA"
-                              value={cartaoValidade}
-                              onChange={(e) => setCartaoValidade(e.target.value)}
-                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="block font-semibold text-slate-700 mb-1">CVC / Código *</label>
-                            <input
-                              type="text"
-                              placeholder="123"
-                              value={cartaoCvc}
-                              onChange={(e) => setCartaoCvc(e.target.value)}
-                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-mono"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs space-y-2 text-blue-900">
-                        <p className="font-bold">Pagamento via {metodoPagamento === "pix" ? "Pix Instantâneo" : "Boleto Bancário"}</p>
-                        <p className="text-[11px] leading-relaxed">
-                          Ao confirmar, a cobrança será gerada diretamente no Asaas com emissão de QR Code / Código de Barras e liberação imediata da sua cota.
-                        </p>
-                      </div>
-                    )}
-
-                    <a
-                      href={planoSelecionadoCheckout.linkAsaas}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 text-center"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Confirmar Assinatura ({frequenciaPricing === "mensal" ? planoSelecionadoCheckout.precoMensal : planoSelecionadoCheckout.precoAnual}/mês)</span>
-                    </a>
-                  </div>
-
-                </div>
-              </>
-            )}
+              ))}
+            </div>
 
             {/* Rodapé Seguro */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between px-8 text-slate-500 text-[11px]">
