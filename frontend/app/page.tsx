@@ -24,14 +24,25 @@ import {
   Send, 
   Sparkles, 
   ChevronRight, 
+  ChevronLeft, 
   Briefcase, 
-  FileCheck2,
-  Search,
-  BookMarked,
-  Cpu,
-  Command,
-  Gavel,
-  ExternalLink
+  FileCheck2, 
+  Search, 
+  BookMarked, 
+  Cpu, 
+  Command, 
+  Gavel, 
+  PanelLeftClose, 
+  PanelLeftOpen, 
+  Lock, 
+  Calendar, 
+  CreditCard, 
+  CheckCircle, 
+  ShoppingBag, 
+  ShieldCheck, 
+  QrCode, 
+  Barcode, 
+  ArrowLeft 
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -50,6 +61,8 @@ interface StatusPlano {
   plano: string;
   usados: number;
   maximo: number;
+  inicio_ciclo?: string;
+  fim_ciclo?: string;
 }
 
 interface TemplateAtalho {
@@ -58,6 +71,58 @@ interface TemplateAtalho {
   descricao: string;
   prompt: string;
 }
+
+interface DetalhesPlanoPricing {
+  id: string;
+  nome: string;
+  tag: string;
+  precoMensal: string;
+  precoAnual: string;
+  precoAnualTotal: string;
+  minutas: number;
+  paginasUpload: number;
+  linkAsaas: string;
+  destaque?: boolean;
+}
+
+const LISTA_PLANOS: DetalhesPlanoPricing[] = [
+  {
+    id: "individual_1",
+    nome: "Individual I",
+    tag: "Uso Pessoal",
+    precoMensal: "R$ 69,90",
+    precoAnual: "R$ 55,92",
+    precoAnualTotal: "R$ 671,04 / ano",
+    minutas: 15,
+    paginasUpload: 500,
+    linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
+    destaque: false
+  },
+  {
+    id: "individual_2",
+    nome: "Individual II",
+    tag: "Mais Popular",
+    precoMensal: "R$ 129,90",
+    precoAnual: "R$ 103,92",
+    precoAnualTotal: "R$ 1.247,04 / ano",
+    minutas: 40,
+    paginasUpload: 1200,
+    linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
+    destaque: true
+  },
+  {
+    id: "individual_3",
+    nome: "Individual III",
+    tag: "Alta Demanda",
+    precoMensal: "R$ 249,90",
+    precoAnual: "R$ 199,92",
+    precoAnualTotal: "R$ 2.399,04 / ano",
+    minutas: 150,
+    paginasUpload: 1500,
+    linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
+    destaque: false
+  }
+];
 
 const TEMPLATES_ATALHOS: TemplateAtalho[] = [
   {
@@ -102,12 +167,40 @@ export default function Home() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
+  // Modais e Fluxo de Pagamento
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showJurisModal, setShowJurisModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showPopoverConsumo, setShowPopoverConsumo] = useState(false);
   const [helpActiveTab, setHelpActiveTab] = useState<"peticoes" | "datajud" | "atajur" | "timbrado" | "seguranca">("peticoes");
+  const [frequenciaPricing, setFrequenciaPricing] = useState<"mensal" | "anual">("mensal");
+
+  // Etapa do Checkout: 'pricing' (tabela) ou 'checkout' (dados fiscais e pagamento)
+  const [checkoutStep, setCheckoutStep] = useState<"pricing" | "checkout">("pricing");
+  const [planoSelecionadoCheckout, setPlanoSelecionadoCheckout] = useState<DetalhesPlanoPricing>(LISTA_PLANOS[1]);
+  const [tipoDocumentoFiscal, setTipoDocumentoFiscal] = useState<"cpf" | "cnpj">("cpf");
+  const [metodoPagamento, setMetodoPagamento] = useState<"cartao" | "pix" | "boleto">("cartao");
+  
+  // Campos de Dados Fiscais e Pagamento
+  const [docFiscal, setDocFiscal] = useState("");
+  const [cep, setCep] = useState("");
+  const [logradouro, setLogradouro] = useState("");
+  const [numeroEnd, setNumeroEnd] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [uf, setUf] = useState("MS");
+
+  const [cartaoNumero, setCartaoNumero] = useState("");
+  const [cartaoNome, setCartaoNome] = useState("");
+  const [cartaoValidade, setCartaoValidade] = useState("");
+  const [cartaoCvc, setCartaoCvc] = useState("");
 
   const [moduloSelecionado, setModuloSelecionado] = useState<"peticao" | "ata">("peticao");
   const [modoExibicao, setModoExibicao] = useState<"formatado" | "editor">("formatado");
+  const [painelEsquerdoAberto, setPainelEsquerdoAberto] = useState(true);
+
+  // Paywall Toast
+  const [paywallToast, setPaywallToast] = useState<string | null>(null);
 
   const [instrucao, setInstrucao] = useState("");
   const [tribunal, setTribunal] = useState("tjms");
@@ -140,7 +233,13 @@ export default function Home() {
   const [statusEmail, setStatusEmail] = useState<string | null>(null);
 
   const [historicoCasos, setHistoricoCasos] = useState<DocumentoHistorico[]>([]);
-  const [statusPlano, setStatusPlano] = useState<StatusPlano>({ plano: "Básico", usados: 0, maximo: 15 });
+  const [statusPlano, setStatusPlano] = useState<StatusPlano>({ 
+    plano: "Gratuito", 
+    usados: 0, 
+    maximo: 5,
+    inicio_ciclo: "8 de setembro de 2026",
+    fim_ciclo: "7 de outubro de 2026"
+  });
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -172,13 +271,15 @@ export default function Home() {
       if (resStatus.ok) {
         const dataStatus = await resStatus.json();
         setStatusPlano({
-          plano: dataStatus.plano || "Básico",
+          plano: dataStatus.plano || "Gratuito",
           usados: dataStatus.usados || 0,
-          maximo: dataStatus.maximo || 15
+          maximo: dataStatus.maximo || 5,
+          inicio_ciclo: dataStatus.inicio_ciclo || "8 de setembro de 2026",
+          fim_ciclo: dataStatus.fim_ciclo || "7 de outubro de 2026"
         });
       }
     } catch (e) {
-      console.error("Erro ao carregar dados do usuário:", e);
+      console.error("Erro ao carregar dados:", e);
     }
   };
 
@@ -253,9 +354,6 @@ export default function Home() {
 
   const totalPalavras = resultadoTexto.trim() ? resultadoTexto.trim().split(/\s+/).length : 0;
   const estimativaPaginas = Math.max(1, Math.ceil(totalPalavras / 380));
-
-  // Detecta se existem jurisprudências citadas no texto gerado
-  const contagemJuris = (resultadoTexto.match(/EMENTA|REsp|STJ|STF|AgInt/gi) || []).length;
 
   const handleGoogleLogin = async () => {
     setAuthError(null);
@@ -383,11 +481,22 @@ export default function Home() {
     setResultadoTexto(doc.conteudo_markdown);
   };
 
+  // Paywall de Cópia: Bloqueia no plano gratuito e alerta para upgrade
   const handleCopiarTexto = () => {
     if (!resultadoTexto) return;
+    if (statusPlano.plano.toLowerCase() === "gratuito" || statusPlano.plano.toLowerCase() === "básico" || statusPlano.plano.toLowerCase() === "basico") {
+      setPaywallToast("Recurso exclusivo do plano pago. Faça upgrade para usar.");
+      setTimeout(() => setPaywallToast(null), 4000);
+      return;
+    }
     navigator.clipboard.writeText(resultadoTexto);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
+  };
+
+  const handleAbrirCheckoutPlano = (plano: DetalhesPlanoPricing) => {
+    setPlanoSelecionadoCheckout(plano);
+    setCheckoutStep("checkout");
   };
 
   const handleExecutarIA = async () => {
@@ -560,7 +669,7 @@ export default function Home() {
     t => t.comando.includes(slashSearch) || t.titulo.toLowerCase().includes(slashSearch)
   );
 
-  // Renderizador Forense de Linhas
+  // Parser Forense com Recuo ABNT para Ementas
   const renderizarTextoForense = (texto: string) => {
     const linhas = texto.split("\n");
     return linhas.map((linha, idx) => {
@@ -569,37 +678,51 @@ export default function Home() {
         return <div key={idx} className="h-4"></div>;
       }
 
-      // Ementa / Citação Jurisprudencial (Recuo à esquerda de 4cm e Itálico)
-      if (trimmed.startsWith("> ")) {
+      const formatarNegrito = (str: string) => {
+        const partes = str.split(/(\*\*.*?\*\*)/g);
+        return partes.map((p, i) => {
+          if (p.startsWith("**") && p.endsWith("**")) {
+            return <strong key={i} className="font-bold text-slate-950">{p.slice(2, -2)}</strong>;
+          }
+          return p;
+        });
+      };
+
+      // 1. Ementa e Citações Jurisprudenciais Recuadas (Recuo de 4cm / pl-16 e Itálico)
+      if (trimmed.startsWith("> ") || trimmed.startsWith("EMENTA:")) {
+        const textoEmenta = trimmed.replace(/^>\s*/, "");
         return (
-          <div key={idx} className="pl-14 pr-4 my-3 text-[13px] italic font-serif text-slate-700 border-l-2 border-slate-300 leading-relaxed text-justify">
-            {trimmed.replace(/^>\s*\**|\**$/g, "")}
+          <div key={idx} className="pl-12 sm:pl-16 pr-4 my-4 py-1 text-[13px] italic font-serif text-slate-800 border-l-2 border-slate-300 leading-relaxed text-justify">
+            {formatarNegrito(textoEmenta)}
           </div>
         );
       }
 
-      // Título Centralizado
-      if (trimmed.startsWith("# ")) {
+      // 2. Endereçamento e Títulos em Destaque Centralizados
+      if (
+        trimmed.startsWith("# ") ||
+        /^(EXCELENTÍSSIMO|AO DOUTO|AO EGRÉGIO|AGRAVO DE INSTRUMENTO|AÇÃO DECLARATÓRIA|AÇÃO DE COBRANÇA|PETIÇÃO INICIAL)/i.test(trimmed)
+      ) {
         return (
-          <h2 key={idx} className="text-center font-bold font-serif text-[15px] uppercase text-slate-950 my-5 tracking-wide">
-            {trimmed.replace(/^#\s*/, "")}
-          </h2>
+          <div key={idx} className="text-center font-bold font-serif text-[14.5px] uppercase text-slate-950 my-4 tracking-wide leading-relaxed">
+            {formatarNegrito(trimmed.replace(/^#+\s*/, ""))}
+          </div>
         );
       }
 
-      // Seções e Títulos de Tópicos
-      if (trimmed.startsWith("## ") || trimmed.startsWith("### ") || /^\d+\.\s+[A-ZÁ-Ú]/.test(trimmed)) {
+      // 3. Tópicos Numerados e Subseções
+      if (trimmed.startsWith("## ") || trimmed.startsWith("### ") || /^\d+(\.\d+)*\.\s+[A-ZÁ-Ú]/.test(trimmed)) {
         return (
-          <h3 key={idx} className="font-bold font-serif text-[14px] uppercase text-slate-900 mt-6 mb-3 text-left">
-            {trimmed.replace(/^#+\s*/, "")}
+          <h3 key={idx} className="font-bold font-serif text-[14px] uppercase text-slate-900 mt-6 mb-2.5 text-left tracking-tight">
+            {formatarNegrito(trimmed.replace(/^#+\s*/, ""))}
           </h3>
         );
       }
 
-      // Parágrafo Forense Padrão (Recuo de Primeira Linha + Justificado)
+      // 4. Parágrafo Forense Padrão (Recuo de Primeira Linha + Justificado A4)
       return (
-        <p key={idx} className="font-serif text-[14.5px] text-slate-900 leading-[1.8] text-justify indent-8 my-2">
-          {trimmed.replace(/\*\*(.*?)\*\*/g, "$1")}
+        <p key={idx} className="font-serif text-[14.5px] text-slate-900 leading-[1.85] text-justify indent-8 my-2">
+          {formatarNegrito(trimmed)}
         </p>
       );
     });
@@ -801,7 +924,29 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800">
-      {/* SIDEBAR LATERAL */}
+      
+      {/* PAYWALL TOAST FLUTUANTE */}
+      {paywallToast && (
+        <div className="fixed top-6 right-6 z-50 bg-[#EF4444] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-200">
+          <div className="p-1 bg-white/20 rounded-lg">
+            <Lock className="w-4 h-4 text-white" />
+          </div>
+          <div className="text-xs font-semibold">
+            {paywallToast}
+          </div>
+          <button
+            onClick={() => {
+              setCheckoutStep("pricing");
+              setShowPricingModal(true);
+            }}
+            className="ml-2 text-[11px] bg-white text-red-600 px-2.5 py-1 rounded-lg font-bold hover:bg-slate-100 transition shadow-sm cursor-pointer"
+          >
+            Assinar ➔
+          </button>
+        </div>
+      )}
+
+      {/* SIDEBAR LATERAL (DARK) */}
       <aside className="w-64 bg-[#0B132B] border-r border-slate-800 flex flex-col justify-between shrink-0 hidden md:flex">
         <div className="p-4 space-y-6">
           <div className="flex items-center gap-2.5 px-2">
@@ -850,10 +995,54 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-800 space-y-4">
-          <div className="bg-[#0F172A] p-3 rounded-xl border border-white/5 space-y-2">
+        {/* Card de Consumo Interativo com Popover */}
+        <div className="p-4 border-t border-slate-800 space-y-4 relative">
+          
+          {showPopoverConsumo && (
+            <div className="absolute bottom-[calc(100%+8px)] left-4 right-4 bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 z-50 text-slate-900 animate-in fade-in slide-in-from-bottom-2 duration-150 text-left">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900 mb-2">
+                <FileText className="w-4 h-4 text-blue-600" />
+                <span>{statusPlano.usados} utilizada(s) de {statusPlano.maximo} minutas disponíveis</span>
+              </div>
+
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
+                <div 
+                  className="bg-blue-600 h-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (statusPlano.usados / statusPlano.maximo) * 100)}%` }}
+                ></div>
+              </div>
+
+              <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl space-y-1 mb-3 text-[11px] text-slate-600">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Ciclo mensal</span>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  {statusPlano.inicio_ciclo} até {statusPlano.fim_ciclo}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPopoverConsumo(false);
+                  setCheckoutStep("pricing");
+                  setShowPricingModal(true);
+                }}
+                className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Ver Planos</span>
+              </button>
+            </div>
+          )}
+
+          <div 
+            onClick={() => setShowPopoverConsumo(!showPopoverConsumo)}
+            className="bg-[#0F172A] p-3 rounded-xl border border-white/5 space-y-2 cursor-pointer hover:border-white/15 transition"
+          >
             <div className="flex justify-between text-[11px] text-slate-300 font-semibold">
-              <span>Consumo do Mês</span>
+              <span>{statusPlano.plano}</span>
               <span className="text-[#38BDF8]">{statusPlano.usados} / {statusPlano.maximo} docs</span>
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
@@ -862,7 +1051,10 @@ export default function Home() {
                 style={{ width: `${Math.min(100, (statusPlano.usados / statusPlano.maximo) * 100)}%` }}
               ></div>
             </div>
-            <p className="text-[10px] text-slate-400">Plano {statusPlano.plano}</p>
+            <div className="flex items-center justify-between text-[10px] text-slate-400">
+              <span>Ciclo em andamento</span>
+              <span className="text-blue-400 font-semibold hover:underline">Ver detalhes</span>
+            </div>
           </div>
 
           <div className="flex items-center justify-between pt-1">
@@ -889,35 +1081,37 @@ export default function Home() {
       {/* CANVAS CENTRAL */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => {
-                setModuloSelecionado("peticao");
-                setResultadoTexto("");
-              }}
-              className={`flex items-center space-x-2 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                moduloSelecionado === "peticao"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Petição de 1º Grau</span>
-            </button>
-            <button
-              onClick={() => {
-                setModuloSelecionado("ata");
-                setResultadoTexto("");
-              }}
-              className={`flex items-center space-x-2 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                moduloSelecionado === "ata"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Mic className="w-3.5 h-3.5" />
-              <span>Ata de Reunião</span>
-            </button>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                onClick={() => {
+                  setModuloSelecionado("peticao");
+                  setResultadoTexto("");
+                }}
+                className={`flex items-center space-x-2 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  moduloSelecionado === "peticao"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Petição de 1º Grau</span>
+              </button>
+              <button
+                onClick={() => {
+                  setModuloSelecionado("ata");
+                  setResultadoTexto("");
+                }}
+                className={`flex items-center space-x-2 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  moduloSelecionado === "ata"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5" />
+                <span>Ata de Reunião</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -929,15 +1123,16 @@ export default function Home() {
               <span>Manual</span>
             </button>
 
-            <a
-              href="https://www.asaas.com/c/jak9kzx44se9t69b"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs rounded-lg transition shadow-sm flex items-center gap-1.5"
+            <button
+              onClick={() => {
+                setCheckoutStep("pricing");
+                setShowPricingModal(true);
+              }}
+              className="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs rounded-lg transition shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Assinar Plano</span>
-            </a>
+            </button>
           </div>
         </header>
 
@@ -976,7 +1171,7 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Chips Preditivos / Sugestões Rápidas */}
+              {/* Chips Preditivos */}
               <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl">
                 {moduloSelecionado === "peticao" ? (
                   <>
@@ -1204,92 +1399,116 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch">
-              <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                      <Briefcase className="w-4 h-4 text-blue-600" />
-                      <span>Instruções & Fatos</span>
-                    </h3>
-                    <button
-                      onClick={handleNovoAtendimento}
-                      className="text-xs text-blue-600 font-semibold hover:underline cursor-pointer"
-                    >
-                      + Novo
-                    </button>
-                  </div>
-
-                  <textarea
-                    rows={8}
-                    value={instrucao}
-                    onChange={(e) => setInstrucao(e.target.value)}
-                    className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-
-                  {arquivoTimbrado && (
-                    <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-800">
-                      <div className="flex items-center gap-2 truncate">
-                        <FileCheck2 className="w-4 h-4 text-blue-600 shrink-0" />
-                        <span className="font-semibold truncate">Timbrado: {arquivoTimbrado.name}</span>
-                      </div>
-                      <button onClick={() => setArquivoTimbrado(null)} className="text-blue-500 hover:text-red-500 cursor-pointer">
-                        <X className="w-3.5 h-3.5" />
+            <div className={`grid grid-cols-1 ${painelEsquerdoAberto ? "lg:grid-cols-12" : "lg:grid-cols-1"} gap-6 h-full items-stretch transition-all duration-300`}>
+              
+              {/* PAINEL ESQUERDO: INSTRUÇÕES (COLAPSÁVEL) */}
+              {painelEsquerdoAberto && (
+                <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-blue-600" />
+                        <span>Instruções & Fatos</span>
+                      </h3>
+                      <button
+                        onClick={handleNovoAtendimento}
+                        className="text-xs text-blue-600 font-semibold hover:underline cursor-pointer"
+                      >
+                        + Novo
                       </button>
                     </div>
-                  )}
 
-                  {arquivos.length > 0 && (
-                    <div>
-                      <span className="text-xs font-bold text-slate-700 mb-1.5 block">Documentos Anexados:</span>
-                      <div className="space-y-1">
-                        {arquivos.map((f, i) => (
-                          <div key={i} className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 truncate">
-                            📄 {f.name}
-                          </div>
-                        ))}
+                    <textarea
+                      rows={8}
+                      value={instrucao}
+                      onChange={(e) => setInstrucao(e.target.value)}
+                      className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+
+                    {arquivoTimbrado && (
+                      <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-800">
+                        <div className="flex items-center gap-2 truncate">
+                          <FileCheck2 className="w-4 h-4 text-blue-600 shrink-0" />
+                          <span className="font-semibold truncate">Timbrado: {arquivoTimbrado.name}</span>
+                        </div>
+                        <button onClick={() => setArquivoTimbrado(null)} className="text-blue-500 hover:text-red-500 cursor-pointer">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
 
-                <button
-                  type="button"
-                  onClick={handleExecutarIA}
-                  disabled={gerando}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-                >
-                  {gerando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  <span>{gerando ? "Processando..." : "Regenerar / Atualizar"}</span>
-                </button>
-              </div>
+                    {arquivos.length > 0 && (
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 mb-1.5 block">Documentos Anexados:</span>
+                        <div className="space-y-1">
+                          {arquivos.map((f, i) => (
+                            <div key={i} className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 truncate">
+                              📄 {f.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExecutarIA}
+                    disabled={gerando}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    {gerando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    <span>{gerando ? "Processando..." : "Regenerar / Atualizar"}</span>
+                  </button>
+                </div>
+              )}
 
               {/* PAINEL DIREITO: FOLHA FORENSE A4 ESTILO MINUTA IA */}
-              <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto relative">
+              <div className={`${painelEsquerdoAberto ? "lg:col-span-8" : "lg:col-span-12"} bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto relative transition-all duration-300`}>
                 <div>
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        <span className="font-bold text-slate-900 text-sm">
-                          {moduloSelecionado === "peticao" ? "Peça Processual (Padrão Forense)" : "Ata Executiva de Reunião"}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
-                        <span>{totalPalavras.toLocaleString()} palavras</span>
-                        <span>•</span>
-                        <span>~{estimativaPaginas} {estimativaPaginas === 1 ? "página" : "páginas"} A4</span>
-                        {arquivoTimbrado && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPainelEsquerdoAberto(!painelEsquerdoAberto)}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                        title={painelEsquerdoAberto ? "Recolher painel de fatos" : "Expandir painel de fatos"}
+                      >
+                        {painelEsquerdoAberto ? (
                           <>
-                            <span>•</span>
-                            <span className="text-blue-600 font-medium">Timbrado ativo</span>
+                            <PanelLeftClose className="w-3.5 h-3.5 text-slate-600" />
+                            <span className="hidden sm:inline">Modo Foco</span>
+                          </>
+                        ) : (
+                          <>
+                            <PanelLeftOpen className="w-3.5 h-3.5 text-blue-600" />
+                            <span className="hidden sm:inline">Ver Fatos</span>
                           </>
                         )}
-                      </p>
+                      </button>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                          <span className="font-bold text-slate-900 text-sm">
+                            {moduloSelecionado === "peticao" ? "Peça Processual (Padrão Forense)" : "Ata Executiva de Reunião"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+                          <span>{totalPalavras.toLocaleString()} palavras</span>
+                          <span>•</span>
+                          <span>~{estimativaPaginas} {estimativaPaginas === 1 ? "página" : "páginas"} A4</span>
+                          {arquivoTimbrado && (
+                            <>
+                              <span>•</span>
+                              <span className="text-blue-600 font-medium">Timbrado ativo</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      {/* Seletor de Modo: Formatado vs Raw Editor */}
                       <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-2 text-[11px]">
                         <button
                           type="button"
@@ -1372,7 +1591,7 @@ export default function Home() {
                         </div>
                         <p className="font-mono text-[11px] text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100 leading-relaxed">
                           {moduloSelecionado === "peticao"
-                            ? "CPC/2015 (Art. 300, 319, 320) • Código Civil (Art. 186, 927) • CDC (Art. 6º, VIII, 14) • Temas STJ e Enunciados"
+                            ? "CPC/2015 (Art. 300, 319, 320, 995, 1.015) • Código Civil (Art. 186, 927) • CDC (Art. 6º, VIII, 14) • Tema 988/STJ e Súmulas"
                             : "Síntese deliberativa • Mapeamento de Action Items com responsáveis nominais • Prazos fatais"}
                         </p>
                       </div>
@@ -1396,9 +1615,9 @@ export default function Home() {
                   )}
 
                   {/* VISUALIZADOR DA FOLHA FORENSE A4 ESTILO MINUTA IA */}
-                  <div className="relative min-h-[480px]">
+                  <div className="relative min-h-[500px]">
                     {modoExibicao === "formatado" ? (
-                      <div className="w-full bg-white p-8 sm:p-12 border border-slate-200/80 rounded-2xl shadow-sm space-y-4 max-h-[620px] overflow-y-auto">
+                      <div className="w-full bg-[#FCFCFD] p-8 sm:p-14 border border-slate-200/90 rounded-2xl shadow-inner space-y-4 max-h-[660px] overflow-y-auto">
                         {!resultadoTexto ? (
                           <p className="text-slate-400 text-xs italic font-serif">O documento gerado com formatação e ementas recuadas surgirá aqui...</p>
                         ) : (
@@ -1415,20 +1634,20 @@ export default function Home() {
                       />
                     )}
 
-                    {/* BOTÃO FLUTUANTE DE JURISPRUDÊNCIA RECOMENDADA (ESTILO MINUTA IA) */}
+                    {/* BOTÃO FLUTUANTE DE JURISPRUDÊNCIA RECOMENDADA */}
                     {resultadoTexto && (
-                      <div className="absolute right-3 bottom-6 flex flex-col items-end z-20">
+                      <div className="absolute right-4 bottom-6 flex flex-col items-end z-20">
                         <button
                           type="button"
                           onClick={() => setShowJurisModal(true)}
-                          className="flex items-center gap-2 bg-white/95 hover:bg-white text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer text-xs font-semibold group backdrop-blur-sm"
+                          className="flex items-center gap-2.5 bg-white/95 hover:bg-white text-slate-800 border border-slate-200/90 px-3.5 py-2.5 rounded-xl shadow-xl hover:shadow-2xl transition-all cursor-pointer text-xs font-semibold group backdrop-blur-md"
                         >
-                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition">
-                            <Gavel className="w-3.5 h-3.5" />
+                          <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition">
+                            <Gavel className="w-4 h-4" />
                           </div>
                           <div className="text-left">
-                            <p className="text-[11px] font-bold text-slate-900 leading-tight">Ver jurisprudências citadas</p>
-                            <p className="text-[10px] text-slate-500 leading-tight">Ementas e teses processuais aplicadas</p>
+                            <p className="text-[11.5px] font-bold text-slate-900 leading-tight">Ver jurisprudências citadas</p>
+                            <p className="text-[10px] text-slate-500 leading-tight">Ementas e acórdãos vinculantes aplicados</p>
                           </div>
                         </button>
                       </div>
@@ -1464,7 +1683,378 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL DE JURISPRUDÊNCIA / EMENTAS CITADAS (ESTILO MINUTA IA) */}
+      {/* =====================================================================
+          MODAL DE ASSINATURA: ETAPA 1 (PRICING GRID) & ETAPA 2 (CHECKOUT)
+      ===================================================================== */}
+      {showPricingModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* ETAPA 1: TABELA DE PREÇOS (PRICING GRID) */}
+            {checkoutStep === "pricing" ? (
+              <>
+                <div className="px-8 pt-8 pb-4 text-center relative border-b border-slate-100">
+                  <button 
+                    onClick={() => setShowPricingModal(false)} 
+                    className="absolute right-6 top-6 text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-full mb-3">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Escolha o plano ideal para a sua banca</span>
+                  </div>
+                  
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Planos Individuais & Escritórios
+                  </h2>
+                  <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-lg mx-auto">
+                    Acesso completo a petições ilimitadas com fundamentação forense, conexão CNJ e modelo timbrado.
+                  </p>
+
+                  <div className="flex items-center justify-center gap-3 mt-5">
+                    <span className={`text-xs font-bold ${frequenciaPricing === "mensal" ? "text-slate-900" : "text-slate-400"}`}>Mensal</span>
+                    <button
+                      type="button"
+                      onClick={() => setFrequenciaPricing(frequenciaPricing === "mensal" ? "anual" : "mensal")}
+                      className="w-12 h-6 bg-slate-900 rounded-full p-1 flex items-center transition cursor-pointer"
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${frequenciaPricing === "anual" ? "translate-x-6 bg-[#38BDF8]" : ""}`}></div>
+                    </button>
+                    <span className={`text-xs font-bold flex items-center gap-1.5 ${frequenciaPricing === "anual" ? "text-slate-900" : "text-slate-400"}`}>
+                      Anual <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">20% OFF</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {LISTA_PLANOS.map((plano) => (
+                    <div 
+                      key={plano.id}
+                      className={`rounded-2xl p-6 flex flex-col justify-between transition shadow-sm space-y-6 ${
+                        plano.destaque 
+                          ? "border-2 border-blue-600 bg-gradient-to-b from-blue-50/40 to-white shadow-xl relative" 
+                          : "border border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      {plano.destaque && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-md">
+                          Mais Popular
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className={`font-bold text-base ${plano.destaque ? "text-blue-950" : "text-slate-900"}`}>{plano.nome}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${plano.destaque ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{plano.tag}</span>
+                        </div>
+
+                        <div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-black text-slate-950">
+                              {frequenciaPricing === "mensal" ? plano.precoMensal : plano.precoAnual}
+                            </span>
+                            <span className="text-xs text-slate-400 font-semibold">/mês</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            Cobrado {frequenciaPricing === "mensal" ? "mensalmente" : `anualmente (${plano.precoAnualTotal})`}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span><strong>{plano.minutas} minutas</strong> completas por mês</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>Exportação em <strong>modelo timbrado (.docx)</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>Upload de até {plano.paginasUpload} páginas por PDF</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>Conexão CNJ / DataJud oficial</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAbrirCheckoutPlano(plano)}
+                        className={`w-full py-2.5 font-bold text-xs rounded-xl transition text-center shadow-sm cursor-pointer ${
+                          plano.destaque 
+                            ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30" 
+                            : "bg-slate-900 hover:bg-slate-800 text-white"
+                        }`}
+                      >
+                        Assinar {plano.nome} ➔
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              /* ETAPA 2: CHECKOUT TRANSPARENTE / DADOS FISCAIS & PAGAMENTO */
+              <>
+                <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutStep("pricing")}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Voltar aos Planos</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900">Finalizando Assinatura:</span>
+                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">
+                      {planoSelecionadoCheckout.nome} ({frequenciaPricing === "mensal" ? planoSelecionadoCheckout.precoMensal : planoSelecionadoCheckout.precoAnual}/mês)
+                    </span>
+                  </div>
+
+                  <button 
+                    onClick={() => setShowPricingModal(false)} 
+                    className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-8 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+                  
+                  {/* Coluna Esquerda: Dados Fiscais */}
+                  <div className="lg:col-span-6 space-y-5">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Dados Fiscais</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Informações para emissão da nota fiscal eletrônica de serviços (NFS-e).</p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTipoDocumentoFiscal("cpf")}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                          tipoDocumentoFiscal === "cpf" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        Pessoa Física (CPF)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTipoDocumentoFiscal("cnpj")}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                          tipoDocumentoFiscal === "cnpj" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        Sociedade de Advogados (CNPJ)
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">
+                          {tipoDocumentoFiscal === "cpf" ? "CPF do Titular *" : "CNPJ da Banca/Escritório *"}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={tipoDocumentoFiscal === "cpf" ? "000.000.000-00" : "00.000.000/0001-00"}
+                          value={docFiscal}
+                          onChange={(e) => setDocFiscal(e.target.value)}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-1">
+                          <label className="block font-semibold text-slate-700 mb-1">CEP *</label>
+                          <input
+                            type="text"
+                            placeholder="79000-000"
+                            value={cep}
+                            onChange={(e) => setCep(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block font-semibold text-slate-700 mb-1">Logradouro / Rua *</label>
+                          <input
+                            type="text"
+                            placeholder="Av. Afonso Pena"
+                            value={logradouro}
+                            onChange={(e) => setLogradouro(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Número *</label>
+                          <input
+                            type="text"
+                            placeholder="1234"
+                            value={numeroEnd}
+                            onChange={(e) => setNumeroEnd(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Bairro *</label>
+                          <input
+                            type="text"
+                            placeholder="Centro"
+                            value={bairro}
+                            onChange={(e) => setBairro(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Cidade / UF *</label>
+                          <input
+                            type="text"
+                            placeholder="Campo Grande"
+                            value={cidade}
+                            onChange={(e) => setCidade(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Coluna Direita: Dados de Pagamento */}
+                  <div className="lg:col-span-6 space-y-5">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Forma de Pagamento</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Processamento com criptografia de ponta a ponta via Asaas Gateway.</p>
+                    </div>
+
+                    {/* Seleção de Método */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMetodoPagamento("cartao")}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          metodoPagamento === "cartao" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>Cartão de Crédito</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMetodoPagamento("pix")}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          metodoPagamento === "pix" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Pix Instantâneo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMetodoPagamento("boleto")}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          metodoPagamento === "boleto" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        <Barcode className="w-3.5 h-3.5" />
+                        <span>Boleto</span>
+                      </button>
+                    </div>
+
+                    {metodoPagamento === "cartao" ? (
+                      <div className="space-y-3 text-xs">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Número do Cartão *</label>
+                          <input
+                            type="text"
+                            placeholder="0000 0000 0000 0000"
+                            value={cartaoNumero}
+                            onChange={(e) => setCartaoNumero(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Nome Impresso no Cartão *</label>
+                          <input
+                            type="text"
+                            placeholder="NOME COMO ESTÁ NO CARTÃO"
+                            value={cartaoNome}
+                            onChange={(e) => setCartaoNome(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 uppercase"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">Validade (MM/AA) *</label>
+                            <input
+                              type="text"
+                              placeholder="MM/AA"
+                              value={cartaoValidade}
+                              onChange={(e) => setCartaoValidade(e.target.value)}
+                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">CVC / Código *</label>
+                            <input
+                              type="text"
+                              placeholder="123"
+                              value={cartaoCvc}
+                              onChange={(e) => setCartaoCvc(e.target.value)}
+                              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs space-y-2 text-blue-900">
+                        <p className="font-bold">Pagamento via {metodoPagamento === "pix" ? "Pix Instantâneo" : "Boleto Bancário"}</p>
+                        <p className="text-[11px] leading-relaxed">
+                          Ao confirmar, a cobrança será gerada diretamente no Asaas com emissão de QR Code / Código de Barras e liberação imediata da sua cota.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Botão de Finalização Direta no Gateway */}
+                    <a
+                      href={planoSelecionadoCheckout.linkAsaas}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 text-center"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Confirmar Assinatura ({frequenciaPricing === "mensal" ? planoSelecionadoCheckout.precoMensal : planoSelecionadoCheckout.precoAnual}/mês)</span>
+                    </a>
+                  </div>
+
+                </div>
+              </>
+            )}
+
+            {/* Rodapé Seguro */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between px-8 text-slate-500 text-[11px]">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Cancelamento simples a qualquer momento sem fidelidade
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-slate-400" /> Certificado PCI-DSS &amp; SSL Criptografado
+              </span>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE JURISPRUDÊNCIA / EMENTAS CITADAS */}
       {showJurisModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
@@ -1676,7 +2266,7 @@ export default function Home() {
                 <div className="space-y-4">
                   <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4">
                     <h4 className="font-bold text-emerald-950 text-sm mb-1 flex items-center gap-2">
-                      <span>🎙️</span> Atas Executivas de Reuniões & Síntese de Áudio
+                      <span>🎙️</span> Atas Executivas de Reuniões &amp; Síntese de Áudio
                     </h4>
                     <p className="text-xs text-emerald-900 leading-relaxed">
                       Transforme conversas com clientes, audiências ou reuniões internas em atas formais com divisão executiva de tarefas e prazos fatais.
@@ -1738,7 +2328,7 @@ export default function Home() {
                       </p>
                     </div>
                     <div className="border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-bold text-slate-900 text-xs mb-1">Sigilo & LGPD:</h5>
+                      <h5 className="font-bold text-slate-900 text-xs mb-1">Sigilo &amp; LGPD:</h5>
                       <p className="text-xs text-slate-600">
                         Seus documentos e clientes são isolados por chave de segurança (RLS). Nenhuma informação processual confidencial é compartilhada com terceiros ou utilizada para treinamento público.
                       </p>
