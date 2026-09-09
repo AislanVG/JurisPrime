@@ -29,7 +29,9 @@ import {
   Search,
   BookMarked,
   Cpu,
-  Command
+  Command,
+  Gavel,
+  ExternalLink
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -101,9 +103,12 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
 
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showJurisModal, setShowJurisModal] = useState(false);
   const [helpActiveTab, setHelpActiveTab] = useState<"peticoes" | "datajud" | "atajur" | "timbrado" | "seguranca">("peticoes");
 
   const [moduloSelecionado, setModuloSelecionado] = useState<"peticao" | "ata">("peticao");
+  const [modoExibicao, setModoExibicao] = useState<"formatado" | "editor">("formatado");
+
   const [instrucao, setInstrucao] = useState("");
   const [tribunal, setTribunal] = useState("tjms");
   const [tipoReuniao, setTipoReuniao] = useState<"Cliente" | "Interna">("Cliente");
@@ -248,6 +253,9 @@ export default function Home() {
 
   const totalPalavras = resultadoTexto.trim() ? resultadoTexto.trim().split(/\s+/).length : 0;
   const estimativaPaginas = Math.max(1, Math.ceil(totalPalavras / 380));
+
+  // Detecta se existem jurisprudências citadas no texto gerado
+  const contagemJuris = (resultadoTexto.match(/EMENTA|REsp|STJ|STF|AgInt/gi) || []).length;
 
   const handleGoogleLogin = async () => {
     setAuthError(null);
@@ -552,6 +560,51 @@ export default function Home() {
     t => t.comando.includes(slashSearch) || t.titulo.toLowerCase().includes(slashSearch)
   );
 
+  // Renderizador Forense de Linhas
+  const renderizarTextoForense = (texto: string) => {
+    const linhas = texto.split("\n");
+    return linhas.map((linha, idx) => {
+      const trimmed = linha.trim();
+      if (!trimmed) {
+        return <div key={idx} className="h-4"></div>;
+      }
+
+      // Ementa / Citação Jurisprudencial (Recuo à esquerda de 4cm e Itálico)
+      if (trimmed.startsWith("> ")) {
+        return (
+          <div key={idx} className="pl-14 pr-4 my-3 text-[13px] italic font-serif text-slate-700 border-l-2 border-slate-300 leading-relaxed text-justify">
+            {trimmed.replace(/^>\s*\**|\**$/g, "")}
+          </div>
+        );
+      }
+
+      // Título Centralizado
+      if (trimmed.startsWith("# ")) {
+        return (
+          <h2 key={idx} className="text-center font-bold font-serif text-[15px] uppercase text-slate-950 my-5 tracking-wide">
+            {trimmed.replace(/^#\s*/, "")}
+          </h2>
+        );
+      }
+
+      // Seções e Títulos de Tópicos
+      if (trimmed.startsWith("## ") || trimmed.startsWith("### ") || /^\d+\.\s+[A-ZÁ-Ú]/.test(trimmed)) {
+        return (
+          <h3 key={idx} className="font-bold font-serif text-[14px] uppercase text-slate-900 mt-6 mb-3 text-left">
+            {trimmed.replace(/^#+\s*/, "")}
+          </h3>
+        );
+      }
+
+      // Parágrafo Forense Padrão (Recuo de Primeira Linha + Justificado)
+      return (
+        <p key={idx} className="font-serif text-[14.5px] text-slate-900 leading-[1.8] text-justify indent-8 my-2">
+          {trimmed.replace(/\*\*(.*?)\*\*/g, "$1")}
+        </p>
+      );
+    });
+  };
+
   if (loadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0B132B]">
@@ -560,22 +613,14 @@ export default function Home() {
     );
   }
 
-  // =========================================================================
-  // 1. TELA DE LOGIN PREMIUM & HERO FORENSE
-  // =========================================================================
   if (!user) {
     return (
       <div className="min-h-screen bg-[#070D1E] relative flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
-        
-        {/* Glow de Fundo */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10 py-10">
-          
-          {/* PAINEL ESQUERDO: CARD DE AUTENTICAÇÃO */}
           <div className="lg:col-span-5 w-full max-w-[430px] mx-auto bg-[#0D152A]/90 backdrop-blur-xl p-8 sm:p-9 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] text-center">
-            
             <div className="flex items-center justify-center gap-2.5 mb-5">
               <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 rounded-xl text-[#38BDF8]">
                 <Scale className="w-6 h-6" />
@@ -679,9 +724,7 @@ export default function Home() {
             </form>
           </div>
 
-          {/* PAINEL DIREITO: APRESENTAÇÃO INSTITUCIONAL & DIFERENCIAIS */}
           <div className="lg:col-span-7 flex flex-col justify-center space-y-7 text-left lg:pl-6">
-            
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-500/10 border border-blue-500/20 text-[#38BDF8] text-xs font-bold rounded-full shadow-inner">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -750,17 +793,12 @@ export default function Home() {
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Sem retenção pública
               </span>
             </div>
-
           </div>
-
         </div>
       </div>
     );
   }
 
-  // =========================================================================
-  // 2. WORKSTATION AVJURIS (DASHBOARD PRINCIPAL)
-  // =========================================================================
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800">
       {/* SIDEBAR LATERAL */}
@@ -849,7 +887,7 @@ export default function Home() {
       </aside>
 
       {/* CANVAS CENTRAL */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
@@ -987,8 +1025,6 @@ export default function Home() {
 
               {/* Caixa de Entrada com Menu de Atalhos (/) */}
               <div className="w-full relative bg-white border-2 border-slate-200 hover:border-blue-400 focus-within:border-blue-600 rounded-2xl p-4 shadow-lg transition duration-200 text-left">
-                
-                {/* Menu Flutuante de Comandos (Slash Menu) */}
                 {showSlashMenu && (
                   <div className="absolute left-4 bottom-[calc(100%+8px)] w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <div className="p-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
@@ -1228,7 +1264,8 @@ export default function Home() {
                 </button>
               </div>
 
-              <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto">
+              {/* PAINEL DIREITO: FOLHA FORENSE A4 ESTILO MINUTA IA */}
+              <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto relative">
                 <div>
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
                     <div>
@@ -1251,27 +1288,52 @@ export default function Home() {
                       </p>
                     </div>
 
-                    {resultadoTexto && (
-                      <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
+                      {/* Seletor de Modo: Formatado vs Raw Editor */}
+                      <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-2 text-[11px]">
                         <button
-                          onClick={handleCopiarTexto}
-                          className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer"
+                          type="button"
+                          onClick={() => setModoExibicao("formatado")}
+                          className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer ${
+                            modoExibicao === "formatado" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500"
+                          }`}
                         >
-                          {copiado ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiado ? "Copiado!" : "Copiar"}</span>
+                          Visualização Forense
                         </button>
-
                         <button
-                          onClick={() => handleDownloadDocx("Documento_AvJuris", resultadoTexto)}
-                          className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                          type="button"
+                          onClick={() => setModoExibicao("editor")}
+                          className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer ${
+                            modoExibicao === "editor" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500"
+                          }`}
                         >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Exportar .DOCX</span>
+                          Editar Markdown
                         </button>
                       </div>
-                    )}
+
+                      {resultadoTexto && (
+                        <>
+                          <button
+                            onClick={handleCopiarTexto}
+                            className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer"
+                          >
+                            {copiado ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiado ? "Copiado!" : "Copiar"}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDownloadDocx("Documento_AvJuris", resultadoTexto)}
+                            className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Exportar .DOCX</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
+                  {/* PAINEL DE REASONING / THINKING */}
                   {gerando && (
                     <div className="mb-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-4.5 space-y-3.5 shadow-sm animate-in fade-in duration-300">
                       <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
@@ -1333,17 +1395,48 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div className="relative">
-                    <textarea
-                      rows={gerando ? 12 : 18}
-                      value={resultadoTexto}
-                      onChange={(e) => setResultadoTexto(e.target.value)}
-                      placeholder="O conteúdo gerado pela IA surgirá aqui para revisão e edição em tempo real..."
-                      className="w-full p-6 bg-[#FAFAFA] border border-slate-200 rounded-xl font-serif text-[15px] leading-relaxed text-slate-900 focus:outline-none focus:border-blue-400 focus:bg-white transition resize-none shadow-inner"
-                    />
+                  {/* VISUALIZADOR DA FOLHA FORENSE A4 ESTILO MINUTA IA */}
+                  <div className="relative min-h-[480px]">
+                    {modoExibicao === "formatado" ? (
+                      <div className="w-full bg-white p-8 sm:p-12 border border-slate-200/80 rounded-2xl shadow-sm space-y-4 max-h-[620px] overflow-y-auto">
+                        {!resultadoTexto ? (
+                          <p className="text-slate-400 text-xs italic font-serif">O documento gerado com formatação e ementas recuadas surgirá aqui...</p>
+                        ) : (
+                          renderizarTextoForense(resultadoTexto)
+                        )}
+                      </div>
+                    ) : (
+                      <textarea
+                        rows={18}
+                        value={resultadoTexto}
+                        onChange={(e) => setResultadoTexto(e.target.value)}
+                        placeholder="O conteúdo gerado pela IA surgirá aqui para revisão e edição em tempo real..."
+                        className="w-full p-6 bg-[#FAFAFA] border border-slate-200 rounded-xl font-serif text-[15px] leading-relaxed text-slate-900 focus:outline-none focus:border-blue-400 focus:bg-white transition resize-none shadow-inner"
+                      />
+                    )}
+
+                    {/* BOTÃO FLUTUANTE DE JURISPRUDÊNCIA RECOMENDADA (ESTILO MINUTA IA) */}
+                    {resultadoTexto && (
+                      <div className="absolute right-3 bottom-6 flex flex-col items-end z-20">
+                        <button
+                          type="button"
+                          onClick={() => setShowJurisModal(true)}
+                          className="flex items-center gap-2 bg-white/95 hover:bg-white text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer text-xs font-semibold group backdrop-blur-sm"
+                        >
+                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition">
+                            <Gavel className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[11px] font-bold text-slate-900 leading-tight">Ver jurisprudências citadas</p>
+                            <p className="text-[10px] text-slate-500 leading-tight">Ementas e teses processuais aplicadas</p>
+                          </div>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
+                {/* Disparo por E-mail */}
                 {resultadoTexto && (
                   <div className="border-t border-slate-100 pt-4 mt-4 flex items-center justify-between gap-4">
                     <div className="flex-1 flex space-x-2">
@@ -1371,6 +1464,89 @@ export default function Home() {
         </main>
       </div>
 
+      {/* MODAL DE JURISPRUDÊNCIA / EMENTAS CITADAS (ESTILO MINUTA IA) */}
+      {showJurisModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 bg-[#0B132B] text-white flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-600/30 border border-blue-500/30 rounded-lg text-[#38BDF8]">
+                  <Gavel className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-white">Pesquisas de Jurisprudência & Fontes</h3>
+                  <p className="text-[11px] text-slate-400">Precedentes e acórdãos aplicados na fundamentação</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowJurisModal(false)} 
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-xs">SUPERIOR TRIBUNAL DE JUSTIÇA (STJ)</span>
+                  <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded">Precedente Vinculante</span>
+                </div>
+                <p className="font-serif italic text-slate-700 leading-relaxed text-justify">
+                  EMENTA: PROCESSUAL CIVIL. TUTELA DE URGÊNCIA. CABIMENTO DO AGRAVO DE INSTRUMENTO. O rol do art. 1.015 do CPC possui taxatividade mitigada quando demonstrada a urgência decorrente da inutilidade do julgamento da questão no recurso de apelação (Tema 988/STJ).
+                </p>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-[11px] text-slate-500 font-mono">
+                  <span>REsp 1.704.520/MT, Rel. Min. Nancy Andrighi</span>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      navigator.clipboard.writeText("Tema 988/STJ - Taxatividade Mitigada do Art. 1.015 do CPC");
+                      alert("Citação copiada!");
+                    }}
+                    className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                  >
+                    Copiar citação
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-xs">STJ • TERCEIRA TURMA</span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">Responsabilidade Civil</span>
+                </div>
+                <p className="font-serif italic text-slate-700 leading-relaxed text-justify">
+                  EMENTA: CONSUMIDOR. INSCRIÇÃO INDEVIDA EM CADASTROS DE INADIMPLENTES. DANO MORAL IN RE IPSA. DESNECESSIDADE DE PROVA DO PREJUÍZO FÁTICO. QUANTUM INDENIZATÓRIO RAZOÁVEL E PROPORCIONAL.
+                </p>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-[11px] text-slate-500 font-mono">
+                  <span>AgInt no AREsp 1.827.553/SP, Rel. Min. Marco Aurélio Bellizze</span>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      navigator.clipboard.writeText("Súmula 385/STJ e precedentes de dano moral in re ipsa");
+                      alert("Citação copiada!");
+                    }}
+                    className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                  >
+                    Copiar citação
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+              <button 
+                onClick={() => setShowJurisModal(false)} 
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE AJUDA / MANUAL OPERACIONAL */}
       {showHelpModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
