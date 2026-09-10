@@ -102,8 +102,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 30,
     processos: 50,
     paginasUpload: 500,
-    linkMensal: "https://www.asaas.com/c/SEU_LINK_BASICO_MENSAL", // Substitua pelo link do seu Asaas
-    linkAnual: "https://www.asaas.com/c/SEU_LINK_BASICO_ANUAL",     // Substitua pelo link do seu Asaas
+    linkMensal: "https://www.asaas.com/c/4l2fifl892xtvqjq", // Substitua pelo link do seu Asaas
+    linkAnual: "https://www.asaas.com/c/zxs6xd58c349otut",  // Substitua pelo link do seu Asaas
     destaque: false
   },
   {
@@ -118,8 +118,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 150,
     processos: 100,
     paginasUpload: 1200,
-    linkMensal: "https://www.asaas.com/c/jak9kzx44se9t69b",       // Seu link mensal atual do Crescimento
-    linkAnual: "https://www.asaas.com/c/SEU_LINK_CRESCIMENTO_ANUAL", // Substitua pelo link do seu Asaas
+    linkMensal: "https://www.asaas.com/c/jak9kzx44se9t69b", // Seu link mensal atual do Crescimento
+    linkAnual: "https://www.asaas.com/c/if37dj8q6gi79kgg",  // Substitua pelo link do seu Asaas
     destaque: true
   },
   {
@@ -134,8 +134,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 300,
     processos: 200,
     paginasUpload: 1500,
-    linkMensal: "https://www.asaas.com/c/SEU_LINK_ESCALA_MENSAL",  // Substitua pelo link do seu Asaas
-    linkAnual: "https://www.asaas.com/c/SEU_LINK_ESCALA_ANUAL",     // Substitua pelo link do seu Asaas
+    linkMensal: "https://www.asaas.com/c/bm3fu418xuhdf9uo",  // Substitua pelo link do seu Asaas
+    linkAnual: "https://www.asaas.com/c/ulxngbnp7czpvfhl",   // Substitua pelo link do seu Asaas
     destaque: false
   }
 ];
