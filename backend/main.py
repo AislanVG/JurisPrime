@@ -75,6 +75,7 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
     try:
         res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
         if not res.data or len(res.data) == 0:
+            # Novo usuário recebe plano gratuito com 5 minutas de teste
             novo_registro = {
                 "user_id": user_id,
                 "plano_id": "gratuito",
@@ -88,7 +89,7 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
         assinatura = res.data[0]
         plano = assinatura.get("planos")
 
-        if not plano:
+        if not plano or not assinatura.get("plano_id") or assinatura.get("plano_id") == "basico":
             plano = {
                 "nome": "Gratuito",
                 "max_documentos_mes": 5,
@@ -109,7 +110,7 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
         if docs_usados >= max_docs:
             raise HTTPException(
                 status_code=403,
-                detail=f"Limite mensal de {max_docs} minutas atingido para o plano {plano.get('nome')}. Assine um plano para continuar gerando."
+                detail=f"Limite mensal de {max_docs} minutas atingido para o plano {plano.get('nome')}. Realize o upgrade de plano."
             )
 
         if arquivos_bytes:
@@ -122,7 +123,7 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
                 if tamanho_mb > max_mb:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"O arquivo '{filename}' possui {tamanho_mb:.1f}MB e excede o limite de {max_mb}MB do plano {plano.get('nome')}."
+                        detail=f"O arquivo '{filename}' possui {tamanho_mb:.1f}MB e excede o limite do plano."
                     )
 
                 if filename.lower().endswith(".pdf"):
@@ -135,7 +136,7 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
             if total_paginas > max_pags:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"O total de {total_paginas} páginas enviadas excede o limite de {max_pags} páginas do plano {plano.get('nome')}."
+                    detail=f"O total de páginas excede o limite do plano."
                 )
 
     except HTTPException:
@@ -144,32 +145,60 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
         print(f"Aviso de validação de assinatura: {str(e)}")
 
 
-def registrar_incremento_documento(user_id: Optional[str]):
-    if not user_id or not supabase:
-        return
-    try:
-        res = supabase.table("assinaturas").select("documentos_usados_mes").eq("user_id", user_id).single().execute()
-        if res.data:
-            atual = res.data.get("documentos_usados_mes", 0)
-            supabase.table("assinaturas").update({"documentos_usados_mes": atual + 1}).eq("user_id", user_id).execute()
-    except Exception as e:
-        print(f"Erro ao incrementar consumo de documento: {str(e)}")
+@app.get("/api/usuario/{user_id}/status")
+async def obter_status_usuario(user_id: str):
+    """Retorna o plano e o consumo de cota atual do usuário."""
+    hoje = date.today()
+    inicio_ciclo = hoje.replace(day=1)
+    fim_ciclo = (inicio_ciclo + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
+    if not supabase:
+        return {
+            "plano": "Gratuito",
+            "usados": 0,
+            "maximo": 5,
+            "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+            "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y")
+        }
 
-def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conteudo: str, instrucao: str = "", tribunal: str = ""):
-    if not user_id or not supabase:
-        return
     try:
-        supabase.table("documentos").insert({
-            "user_id": user_id,
-            "titulo": titulo[:120],
-            "tipo": tipo,
-            "conteudo_markdown": conteudo,
-            "instrucao_original": instrucao,
-            "tribunal": tribunal
-        }).execute()
+        res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
+        if not res.data or len(res.data) == 0:
+            return {
+                "plano": "Gratuito",
+                "usados": 0,
+                "maximo": 5,
+                "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+                "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y")
+            }
+
+        assinatura = res.data[0]
+        plano = assinatura.get("planos") or {}
+        
+        nome_plano = plano.get("nome", "Gratuito")
+        max_docs = plano.get("max_documentos_mes", 5)
+
+        # Força Gratuito se o registro apontar para básico sem assinatura paga confirmada
+        if nome_plano.lower() in ("básico", "basico") and assinatura.get("plano_id") not in ("individual_1", "individual_2", "individual_3", "crescimento", "escala", "basico_pago"):
+            nome_plano = "Gratuito"
+            max_docs = 5
+
+        return {
+            "plano": nome_plano,
+            "usados": assinatura.get("documentos_usados_mes", 0),
+            "maximo": max_docs,
+            "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+            "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y")
+        }
     except Exception as e:
-        print(f"Erro ao persistir documento no Supabase: {str(e)}")
+        return {
+            "plano": "Gratuito",
+            "usados": 0,
+            "maximo": 5,
+            "inicio_ciclo": inicio_ciclo.strftime("%d de %B de %Y"),
+            "fim_ciclo": fim_ciclo.strftime("%d de %B de %Y"),
+            "erro": str(e)
+        }
 
 
 # =====================================================================
