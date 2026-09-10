@@ -853,23 +853,23 @@ export default function Home() {
             </form>
           </div>
 
-          <div className="lg:col-span-7 flex flex-col justify-center space-y-7 text-left lg:pl-6">
-            <div className="space-y-3">
+          <div className="lg:col-span-7 flex flex-col justify-center space-y-7 text-left lg:pl-8">
+            <div className="space-y-3.5 max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-500/10 border border-blue-500/20 text-[#38BDF8] text-xs font-bold rounded-full shadow-inner">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>IA Forense & Automação Processual</span>
               </div>
               
-              <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-black text-white leading-[1.15] tracking-tight">
-                Inteligência forense de precisão para <span className="bg-gradient-to-r from-blue-400 to-[#38BDF8] bg-clip-text text-transparent">escritórios que não perdem prazos</span>
+              <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-white leading-[1.15] tracking-tight">
+                Menos tempo na minuta. <span className="bg-gradient-to-r from-blue-400 to-[#38BDF8] bg-clip-text text-transparent">Mais tempo na estratégia do seu escritório.</span>
               </h2>
 
-              <p className="text-slate-400 text-sm sm:text-base leading-relaxed max-w-xl">
+              <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
                 Elabore peças processuais complexas de 1º grau, consulte o DataJud em segundos e transcreva atas executivas mantendo o rigor dogmático e o papel timbrado do seu escritório.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-2xl">
               <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
                 <div className="flex items-center gap-2 text-white font-bold text-xs">
                   <FileText className="w-4 h-4 text-[#38BDF8]" />
@@ -911,7 +911,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex items-center gap-6 pt-2 text-[11px] text-slate-500 border-t border-white/5">
+            <div className="flex items-center gap-6 pt-2 text-[11px] text-slate-500 border-t border-white/5 max-w-2xl">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Conforme à LGPD
               </span>
