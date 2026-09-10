@@ -102,8 +102,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 30,
     processos: 50,
     paginasUpload: 500,
-    linkMensal: "https://www.asaas.com/c/4l2fifl892xtvqjq", // Substitua pelo link do seu Asaas
-    linkAnual: "https://www.asaas.com/c/zxs6xd58c349otut",  // Substitua pelo link do seu Asaas
+    linkMensal: "https://www.asaas.com/c/4l2fifl892xtvqjq",
+    linkAnual: "https://www.asaas.com/c/zxs6xd58c349otut",
     destaque: false
   },
   {
@@ -118,8 +118,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 150,
     processos: 100,
     paginasUpload: 1200,
-    linkMensal: "https://www.asaas.com/c/jak9kzx44se9t69b", // Seu link mensal atual do Crescimento
-    linkAnual: "https://www.asaas.com/c/if37dj8q6gi79kgg",  // Substitua pelo link do seu Asaas
+    linkMensal: "https://www.asaas.com/c/jak9kzx44se9t69b",
+    linkAnual: "https://www.asaas.com/c/if37dj8q6gi79kgg",
     destaque: true
   },
   {
@@ -134,8 +134,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 300,
     processos: 200,
     paginasUpload: 1500,
-    linkMensal: "https://www.asaas.com/c/bm3fu418xuhdf9uo",  // Substitua pelo link do seu Asaas
-    linkAnual: "https://www.asaas.com/c/ulxngbnp7czpvfhl",   // Substitua pelo link do seu Asaas
+    linkMensal: "https://www.asaas.com/c/bm3fu418xuhdf9uo",
+    linkAnual: "https://www.asaas.com/c/ulxngbnp7czpvfhl",
     destaque: false
   }
 ];
@@ -489,7 +489,6 @@ export default function Home() {
     setTimeout(() => setCopiado(false), 2000);
   };
 
-  // Direcionamento direto para a rota correta do Asaas conforme frequência (Mensal / Anual)
   const handleSelecionarPlanoAsaas = (plano: DetalhesPlanoPricing) => {
     if (user?.email) {
       fetch(`${API_BASE_URL}/api/usuario/recuperacao-checkout`, {
@@ -678,7 +677,6 @@ export default function Home() {
     t => t.comando.includes(slashSearch) || t.titulo.toLowerCase().includes(slashSearch)
   );
 
-  // Parser Forense com Recuo ABNT para Ementas
   const renderizarTextoForense = (texto: string) => {
     const linhas = texto.split("\n");
     return linhas.map((linha, idx) => {
@@ -697,7 +695,6 @@ export default function Home() {
         });
       };
 
-      // 1. Ementa e Citações Jurisprudenciais Recuadas (Recuo de 4cm / pl-16 e Itálico)
       if (trimmed.startsWith("> ") || trimmed.startsWith("EMENTA:") || trimmed.startsWith('"[')) {
         const textoEmenta = trimmed.replace(/^>\s*/, "");
         return (
@@ -710,7 +707,6 @@ export default function Home() {
         );
       }
 
-      // 2. Endereçamento e Títulos em Destaque Centralizados
       if (
         trimmed.startsWith("# ") ||
         /^(EXCELENTÍSSIMO|AO DOUTO|AO EGRÉGIO|AGRAVO DE INSTRUMENTO|AÇÃO DECLARATÓRIA|AÇÃO DE COBRANÇA|PETIÇÃO INICIAL|CONTESTAÇÃO)/i.test(trimmed)
@@ -722,7 +718,6 @@ export default function Home() {
         );
       }
 
-      // 3. Tópicos Numerados e Subseções
       if (trimmed.startsWith("## ") || trimmed.startsWith("### ") || /^\d+(\.\d+)*\.\s+[A-ZÁ-Ú]/.test(trimmed)) {
         return (
           <h3 key={idx} className="font-bold font-serif text-[14px] uppercase text-slate-900 mt-6 mb-2.5 text-left tracking-tight">
@@ -731,7 +726,6 @@ export default function Home() {
         );
       }
 
-      // 4. Parágrafo Forense Padrão (Recuo de Primeira Linha + Justificado A4)
       return (
         <p key={idx} className="font-serif text-[14.5px] text-slate-900 leading-[1.85] text-justify indent-8 my-2">
           {formatarNegrito(trimmed)}
@@ -769,7 +763,7 @@ export default function Home() {
               Acesso à Plataforma
             </h1>
             <p className="text-slate-400 text-xs mb-7 leading-relaxed">
-              Estação de trabalho forense para bancas e advogados.
+              Estação de trabalho forense para escritórios e advogados.
             </p>
 
             <button
@@ -867,11 +861,11 @@ export default function Home() {
               </div>
               
               <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-black text-white leading-[1.15] tracking-tight">
-                A infraestrutura definitiva para <span className="bg-gradient-to-r from-blue-400 to-[#38BDF8] bg-clip-text text-transparent">advogados de alta performance</span>
+                Inteligência forense de precisão para <span className="bg-gradient-to-r from-blue-400 to-[#38BDF8] bg-clip-text text-transparent">escritórios que não perdem prazos</span>
               </h2>
 
               <p className="text-slate-400 text-sm sm:text-base leading-relaxed max-w-xl">
-                Elabore peças processuais completas, consulte o CNJ/DataJud e transcreva atas de reuniões executivas mantendo o papel timbrado da sua banca.
+                Elabore peças processuais complexas de 1º grau, consulte o DataJud em segundos e transcreva atas executivas mantendo o rigor dogmático e o papel timbrado do seu escritório.
               </p>
             </div>
 
@@ -902,7 +896,7 @@ export default function Home() {
                   <span>Módulo AtaJur</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-normal">
-                  Gravação de reuniões em atas executivas com matriz de prazos e responsáveis.
+                  Criação de reuniões em atas executivas com matriz de prazos e responsáveis.
                 </p>
               </div>
 
@@ -937,7 +931,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800">
       
-      {/* PAYWALL TOAST FLUTUANTE */}
       {paywallToast && (
         <div className="fixed top-6 right-6 z-50 bg-[#EF4444] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-200">
           <div className="p-1 bg-white/20 rounded-lg">
@@ -955,7 +948,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* SIDEBAR LATERAL (DARK) */}
       <aside className="w-64 bg-[#0B132B] border-r border-slate-800 flex flex-col justify-between shrink-0 hidden md:flex">
         <div className="p-4 space-y-6">
           <div className="flex items-center gap-2.5 px-2">
@@ -1004,7 +996,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Card de Consumo Interativo com Popover */}
         <div className="p-4 border-t border-slate-800 space-y-4 relative">
           
           {showPopoverConsumo && (
@@ -1086,7 +1077,6 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* CANVAS CENTRAL */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
@@ -1141,7 +1131,6 @@ export default function Home() {
           </div>
         </header>
 
-        {/* CORPO DO STUDIO */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col">
           {!resultadoTexto && !gerando ? (
             <div className="max-w-3xl w-full mx-auto my-auto flex flex-col items-center text-center space-y-6">
@@ -1176,7 +1165,6 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Chips Preditivos */}
               <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl">
                 {moduloSelecionado === "peticao" ? (
                   <>
@@ -1223,7 +1211,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Caixa de Entrada com Menu de Atalhos (/) */}
               <div className="w-full relative bg-white border-2 border-slate-200 hover:border-blue-400 focus-within:border-blue-600 rounded-2xl p-4 shadow-lg transition duration-200 text-left">
                 {showSlashMenu && (
                   <div className="absolute left-4 bottom-[calc(100%+8px)] w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -1406,7 +1393,6 @@ export default function Home() {
           ) : (
             <div className={`grid grid-cols-1 ${painelEsquerdoAberto ? "lg:grid-cols-12" : "lg:grid-cols-1"} gap-6 h-full items-stretch transition-all duration-300`}>
               
-              {/* PAINEL ESQUERDO: INSTRUÇÕES (COLAPSÁVEL) */}
               {painelEsquerdoAberto && (
                 <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
                   <div className="space-y-4">
@@ -1468,7 +1454,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* PAINEL DIREITO: FOLHA FORENSE A4 */}
               <div className={`${painelEsquerdoAberto ? "lg:col-span-8" : "lg:col-span-12"} bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-y-auto relative transition-all duration-300`}>
                 <div>
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
@@ -1557,7 +1542,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* PAINEL DE REASONING / THINKING */}
                   {gerando && (
                     <div className="mb-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-4.5 space-y-3.5 shadow-sm animate-in fade-in duration-300">
                       <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
@@ -1619,7 +1603,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* VISUALIZADOR DA FOLHA FORENSE A4 */}
                   <div className="relative min-h-[500px]">
                     {modoExibicao === "formatado" ? (
                       <div className="w-full bg-[#FCFCFD] p-8 sm:p-14 border border-slate-200/90 rounded-2xl shadow-inner space-y-4 max-h-[660px] overflow-y-auto">
@@ -1639,7 +1622,6 @@ export default function Home() {
                       />
                     )}
 
-                    {/* BOTÃO FLUTUANTE DE JURISPRUDÊNCIA RECOMENDADA */}
                     {resultadoTexto && (
                       <div className="absolute right-4 bottom-6 flex flex-col items-end z-20">
                         <button
@@ -1660,7 +1642,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Disparo por E-mail */}
                 {resultadoTexto && (
                   <div className="border-t border-slate-100 pt-4 mt-4 flex items-center justify-between gap-4">
                     <div className="flex-1 flex space-x-2">
@@ -1688,7 +1669,6 @@ export default function Home() {
         </main>
       </div>
 
-      {/* MODAL DE ASSINATURA: TABELA DE PREÇOS (DIRECIONAMENTO DIRETO AO ASAAS) */}
       {showPricingModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
@@ -1703,7 +1683,7 @@ export default function Home() {
               
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold rounded-full mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Escolha o plano ideal para a sua banca</span>
+                <span>Escolha o plano ideal para o seu escritório</span>
               </div>
               
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -1805,7 +1785,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Rodapé Seguro */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between px-8 text-slate-500 text-[11px]">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Cancelamento simples a qualquer momento sem fidelidade
@@ -1819,7 +1798,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL DE JURISPRUDÊNCIA / EMENTAS CITADAS */}
       {showJurisModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
@@ -1901,7 +1879,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL DE AJUDA / MANUAL OPERACIONAL */}
       {showHelpModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
@@ -2061,7 +2038,7 @@ export default function Home() {
                       <span>📄</span> Exportação com Identidade Visual do seu Escritório
                     </h4>
                     <p className="text-xs text-amber-900 leading-relaxed">
-                      Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais da sua banca em todas as minutas baixadas.
+                      Mantenha o cabeçalho, logotipo, rodapé e formatação gráfica oficiais do seu escritório em todas as minutas baixadas.
                     </p>
                   </div>
                   <div className="border border-slate-200 rounded-xl p-4">
