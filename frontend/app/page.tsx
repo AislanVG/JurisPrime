@@ -84,10 +84,12 @@ interface DetalhesPlanoPricing {
   casos: number;
   processos: number;
   paginasUpload: number;
-  linkAsaas: string;
+  linkMensal: string;
+  linkAnual: string;
   destaque?: boolean;
 }
 
+// MAPEAMENTO COMPLETO DOS 6 LINKS DO ASAAS
 const LISTA_PLANOS: DetalhesPlanoPricing[] = [
   {
     id: "basico",
@@ -100,7 +102,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 30,
     processos: 50,
     paginasUpload: 500,
-    linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
+    linkMensal: "https://www.asaas.com/c/SEU_LINK_BASICO_MENSAL", // Substitua pelo link do seu Asaas
+    linkAnual: "https://www.asaas.com/c/SEU_LINK_BASICO_ANUAL",     // Substitua pelo link do seu Asaas
     destaque: false
   },
   {
@@ -115,7 +118,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 150,
     processos: 100,
     paginasUpload: 1200,
-    linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
+    linkMensal: "https://www.asaas.com/c/jak9kzx44se9t69b",       // Seu link mensal atual do Crescimento
+    linkAnual: "https://www.asaas.com/c/SEU_LINK_CRESCIMENTO_ANUAL", // Substitua pelo link do seu Asaas
     destaque: true
   },
   {
@@ -130,7 +134,8 @@ const LISTA_PLANOS: DetalhesPlanoPricing[] = [
     casos: 300,
     processos: 200,
     paginasUpload: 1500,
-    linkAsaas: "https://www.asaas.com/c/jak9kzx44se9t69b",
+    linkMensal: "https://www.asaas.com/c/SEU_LINK_ESCALA_MENSAL",  // Substitua pelo link do seu Asaas
+    linkAnual: "https://www.asaas.com/c/SEU_LINK_ESCALA_ANUAL",     // Substitua pelo link do seu Asaas
     destaque: false
   }
 ];
@@ -484,7 +489,7 @@ export default function Home() {
     setTimeout(() => setCopiado(false), 2000);
   };
 
-  // Direcionamento direto para o Asaas + Disparo de Carrinho Abandonado em segundo plano
+  // Direcionamento direto para a rota correta do Asaas conforme frequência (Mensal / Anual)
   const handleSelecionarPlanoAsaas = (plano: DetalhesPlanoPricing) => {
     if (user?.email) {
       fetch(`${API_BASE_URL}/api/usuario/recuperacao-checkout`, {
@@ -493,12 +498,13 @@ export default function Home() {
         body: JSON.stringify({
           destinatario: user.email,
           nome: getUserName(),
-          plano_nome: plano.nome
+          plano_nome: `${plano.nome} (${frequenciaPricing})`
         })
       }).catch((e) => console.log("Log checkout:", e));
     }
 
-    window.open(plano.linkAsaas, "_blank");
+    const linkDestino = frequenciaPricing === "anual" ? plano.linkAnual : plano.linkMensal;
+    window.open(linkDestino, "_blank");
     setShowPricingModal(false);
   };
 
