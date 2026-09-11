@@ -42,7 +42,8 @@ import {
   ShieldCheck, 
   QrCode, 
   Barcode, 
-  ArrowLeft 
+  ArrowLeft,
+  ArrowRight 
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -89,7 +90,6 @@ interface DetalhesPlanoPricing {
   destaque?: boolean;
 }
 
-// MAPEAMENTO COMPLETO DOS 6 LINKS DO ASAAS
 const LISTA_PLANOS: DetalhesPlanoPricing[] = [
   {
     id: "basico",
@@ -183,7 +183,6 @@ export default function Home() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Modais e Fluxo de Pagamento
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showJurisModal, setShowJurisModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
@@ -195,7 +194,6 @@ export default function Home() {
   const [modoExibicao, setModoExibicao] = useState<"formatado" | "editor">("formatado");
   const [painelEsquerdoAberto, setPainelEsquerdoAberto] = useState(true);
 
-  // Paywall Toast
   const [paywallToast, setPaywallToast] = useState<string | null>(null);
 
   const [instrucao, setInstrucao] = useState("");
@@ -205,12 +203,10 @@ export default function Home() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [arquivoTimbrado, setArquivoTimbrado] = useState<File | null>(null);
 
-  // Menu de Atalhos (/)
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashSearch, setSlashSearch] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Áudio
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -219,7 +215,6 @@ export default function Home() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Geração e Feedback
   const [gerando, setGerando] = useState(false);
   const [gerandoTempo, setGerandoTempo] = useState(0);
   const [resultadoTexto, setResultadoTexto] = useState("");
@@ -742,192 +737,248 @@ export default function Home() {
     );
   }
 
+  // SE O USUÁRIO NÃO ESTIVER LOGADO, EXIBE A NOVA LANDING PAGE INSTITUCIONAL
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#070D1E] relative flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10 py-10">
-          <div className="lg:col-span-5 w-full max-w-[430px] mx-auto bg-[#0D152A]/90 backdrop-blur-xl p-8 sm:p-9 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] text-center">
-            <div className="flex items-center justify-center gap-2.5 mb-5">
-              <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 rounded-xl text-[#38BDF8]">
-                <Scale className="w-6 h-6" />
-              </div>
-              <span className="text-2xl font-black text-white tracking-tight">
-                AVJURIS<span className="text-[#38BDF8]">.AI</span>
-              </span>
+      <div className="min-h-screen bg-[#070D1E] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+        
+        {/* HEADER INSTITUCIONAL */}
+        <header className="sticky top-0 z-50 bg-[#070D1E]/80 backdrop-blur-xl border-b border-white/10 px-6 lg:px-12 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.location.href = "https://app.avjuris.com.br"}>
+            <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 rounded-xl text-[#38BDF8]">
+              <Scale className="w-5 h-5" />
             </div>
-
-            <h1 className="text-white font-extrabold text-2xl tracking-tight mb-1.5">
-              Acesso à Plataforma
-            </h1>
-            <p className="text-slate-400 text-xs mb-7 leading-relaxed">
-              Estação de trabalho forense para escritórios e advogados.
-            </p>
-
-            <button
-              onClick={handleGoogleLogin}
-              type="button"
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-white/15 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-white transition-all shadow-sm mb-5 cursor-pointer hover:border-white/25"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-              <span>Continuar com o Google</span>
-            </button>
-
-            <div className="flex items-center w-full my-5 text-slate-500 text-[11px]">
-              <div className="flex-1 border-b border-white/10"></div>
-              <span className="px-3 uppercase font-semibold tracking-wider text-[10px] text-slate-400">ou e-mail profissional</span>
-              <div className="flex-1 border-b border-white/10"></div>
-            </div>
-
-            <form onSubmit={handleEmailAuth} className="w-full space-y-4 text-left">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">E-mail</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="advogado@escritorio.com.br"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white/[0.03] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#38BDF8] focus:bg-white/[0.06] transition placeholder:text-slate-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Senha</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white/[0.03] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#38BDF8] focus:bg-white/[0.06] pr-10 transition placeholder:text-slate-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-white cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {authError && (
-                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-[11px] text-red-400 text-center font-medium">
-                  {authError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={authLoading}
-                className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl font-bold text-xs transition flex items-center justify-center space-x-2 mt-2 cursor-pointer shadow-lg shadow-blue-600/30 active:scale-[0.99]"
-              >
-                {authLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>{authMode === "login" ? "Entrar na Workstation ➔" : "Criar Minha Conta ➔"}</span>
-                )}
-              </button>
-
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode(authMode === "login" ? "register" : "login");
-                    setAuthError(null);
-                  }}
-                  className="text-[11px] text-slate-400 hover:text-[#38BDF8] transition cursor-pointer font-medium"
-                >
-                  {authMode === "login" ? "Primeiro acesso? Cadastre-se gratuitamente" : "Já possui conta? Fazer login"}
-                </button>
-              </div>
-            </form>
+            <span className="text-xl font-black text-white tracking-tight">
+              AVJURIS<span className="text-[#38BDF8]">.AI</span>
+            </span>
           </div>
 
-          <div className="lg:col-span-7 flex flex-col justify-center space-y-7 text-left lg:pl-8">
-            <div className="space-y-3.5 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-500/10 border border-blue-500/20 text-[#38BDF8] text-xs font-bold rounded-full shadow-inner">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>IA Forense & Automação Processual</span>
-              </div>
-              
-              <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-white leading-[1.15] tracking-tight">
-                Menos tempo na minuta. <span className="bg-gradient-to-r from-blue-400 to-[#38BDF8] bg-clip-text text-transparent">Mais tempo na estratégia do seu escritório.</span>
-              </h2>
+          <nav className="hidden md:flex items-center gap-8 text-xs font-semibold text-slate-300">
+            <a href="#recursos" className="hover:text-white transition">Recursos</a>
+            <a href="#tecnologia" className="hover:text-white transition">Conexão CNJ</a>
+            <a href="#planos" className="hover:text-white transition">Planos</a>
+            <a href="#seguranca" className="hover:text-white transition">Segurança & LGPD</a>
+          </nav>
 
-              <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-                Elabore peças processuais complexas de 1º grau, consulte o DataJud em segundos e transcreva atas executivas mantendo o rigor dogmático e o papel timbrado do seu escritório.
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.location.href = "https://app.avjuris.com.br"}
+              className="px-4 py-2 text-xs font-bold text-slate-300 hover:text-white transition cursor-pointer"
+            >
+              Fazer Login
+            </button>
+            <button
+              onClick={() => window.location.href = "https://app.avjuris.com.br"}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-blue-600/30 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Acessar Workstation</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </header>
+
+        {/* HERO SECTION DE ALTO IMPACTO */}
+        <section className="relative px-6 lg:px-12 pt-20 pb-28 flex flex-col items-center text-center overflow-hidden">
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 text-[#38BDF8] text-xs font-bold rounded-full mb-6 shadow-inner">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Inteligência Forense de Precisão para o Direito Brasileiro</span>
+          </div>
+
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white max-w-5xl tracking-tight leading-[1.1] mb-6">
+            Menos tempo na minuta. <br />
+            <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-[#38BDF8] bg-clip-text text-transparent">
+              Mais tempo na estratégia do seu escritório.
+            </span>
+          </h1>
+
+          <p className="text-slate-400 text-base sm:text-lg max-w-2xl mb-10 leading-relaxed">
+            Elabore petições de 1º grau complexas, consulte a API do DataJud em segundos e transcreva reuniões em atas executivas mantendo o papel timbrado oficial da sua marca.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+            <button
+              onClick={() => window.location.href = "https://app.avjuris.com.br"}
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl font-bold text-sm transition shadow-xl shadow-blue-600/40 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Testar Gratuitamente (5 minutas inclusas)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <a
+              href="#recursos"
+              className="w-full sm:w-auto px-6 py-4 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white rounded-2xl font-bold text-sm transition text-center"
+            >
+              Conhecer Módulos
+            </a>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-xs text-slate-400">
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400" /> Sem cartão de crédito para testar</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400" /> Conforme à LGPD & Sigilo Absoluto</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400" /> Exportação Direta em .DOCX</span>
+          </div>
+        </section>
+
+        {/* SEÇÃO DE RECURSOS (OS 4 PILARES) */}
+        <section id="recursos" className="py-24 px-6 lg:px-12 bg-[#050914] border-t border-white/5">
+          <div className="max-w-7xl mx-auto space-y-16">
+            <div className="text-center space-y-4 max-w-2xl mx-auto">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+                A estação de trabalho definitiva para advogados exigentes
+              </h2>
+              <p className="text-slate-400 text-sm">
+                Desenvolvido por especialistas em tecnologia e direito para automatizar as rotinas mais repetitivas do contencioso e consultivo.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-2xl">
-              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <FileText className="w-4 h-4 text-[#38BDF8]" />
-                  <span>Petições de 1º Grau</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-8 bg-[#0D152A]/80 border border-white/10 rounded-3xl space-y-4 hover:border-blue-500/30 transition">
+                <div className="w-12 h-12 bg-blue-600/20 border border-blue-500/30 rounded-2xl flex items-center justify-center text-[#38BDF8]">
+                  <FileText className="w-6 h-6" />
                 </div>
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  Fatos, fundamentos dogmáticos e pedidos liminares prontos para protocolo.
+                <h3 className="text-xl font-bold text-white">Petições de 1º Grau com Rigor Dogmático</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Fundamentação jurídica alinhada ao CPC/2015, Código Civil e jurisprudência vinculante do STJ/STF. Estruturação automática de fatos, mérito e pedidos liminares.
                 </p>
               </div>
 
-              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <Building className="w-4 h-4 text-emerald-400" />
-                  <span>Conexão CNJ / DataJud</span>
+              <div className="p-8 bg-[#0D152A]/80 border border-white/10 rounded-3xl space-y-4 hover:border-blue-500/30 transition">
+                <div className="w-12 h-12 bg-emerald-600/20 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-emerald-400">
+                  <Building className="w-6 h-6" />
                 </div>
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  Identificação automática de comarca, vara e classe pelo número do processo.
+                <h3 className="text-xl font-bold text-white">Conexão Oficial DataJud / CNJ</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Digite ou cole o número de 20 dígitos do processo para que o sistema consulte automaticamente a comarca, vara de origem, classe e assuntos cadastrados.
                 </p>
               </div>
 
-              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <Mic className="w-4 h-4 text-purple-400" />
-                  <span>Módulo AtaJur</span>
+              <div className="p-8 bg-[#0D152A]/80 border border-white/10 rounded-3xl space-y-4 hover:border-blue-500/30 transition">
+                <div className="w-12 h-12 bg-purple-600/20 border border-purple-500/30 rounded-2xl flex items-center justify-center text-purple-400">
+                  <Mic className="w-6 h-6" />
                 </div>
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  Criação de reuniões em atas executivas com matriz de prazos e responsáveis.
+                <h3 className="text-xl font-bold text-white">Módulo AtaJur (Atas & Reuniões)</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Grave áudios de alinhamentos com clientes ou reuniões internas e obtenha atas executivas limpas com matrizes de prazos, tarefas e responsáveis.
                 </p>
               </div>
 
-              <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-1.5 hover:border-blue-500/30 transition">
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <FileCheck2 className="w-4 h-4 text-amber-400" />
-                  <span>Template Timbrado (.docx)</span>
+              <div className="p-8 bg-[#0D152A]/80 border border-white/10 rounded-3xl space-y-4 hover:border-blue-500/30 transition">
+                <div className="w-12 h-12 bg-amber-600/20 border border-amber-500/30 rounded-2xl flex items-center justify-center text-amber-400">
+                  <FileCheck2 className="w-6 h-6" />
                 </div>
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  Exportação com a identidade visual, cabeçalho e rodapé do seu escritório.
+                <h3 className="text-xl font-bold text-white">Exportação com Template Timbrado (.docx)</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Envie o arquivo modelo em Word (.docx) com o logotipo e identidade visual do seu escritório. O sistema gera a peça preservando todo o layout gráfico original.
                 </p>
               </div>
-            </div>
-
-            <div className="flex items-center gap-6 pt-2 text-[11px] text-slate-500 border-t border-white/5 max-w-2xl">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Conforme à LGPD
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Criptografia AES-256
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" /> Sem retenção pública
-              </span>
             </div>
           </div>
-        </div>
+        </section>
+
+        {/* SEÇÃO DE PLANOS */}
+        <section id="planos" className="py-24 px-6 lg:px-12 border-t border-white/5">
+          <div className="max-w-7xl mx-auto space-y-16">
+            <div className="text-center space-y-4 max-w-2xl mx-auto">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+                Planos transparentes para escritórios de qualquer porte
+              </h2>
+              <p className="text-slate-400 text-sm">
+                Escolha a cota ideal para impulsionar a produção jurídica da sua equipe.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-[#0D152A] p-8 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Básico</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white">R$ 59,90</span>
+                    <span className="text-xs text-slate-400">/mês</span>
+                  </div>
+                  <p className="text-xs text-slate-400">Ideal para uso individual e advogados autônomos.</p>
+                  <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-white/10">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> 15 minutas por mês</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> 30 casos salvos</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> Conexão DataJud inclusa</li>
+                  </ul>
+                </div>
+                <button
+                  onClick={() => window.location.href = "https://app.avjuris.com.br"}
+                  className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs transition cursor-pointer"
+                >
+                  Assinar Básico
+                </button>
+              </div>
+
+              <div className="bg-gradient-to-b from-blue-950/60 to-[#0D152A] p-8 rounded-3xl border-2 border-blue-600 flex flex-col justify-between space-y-6 relative shadow-2xl">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                  Mais Popular
+                </div>
+                <div className="space-y-4">
+                  <span className="text-xs font-bold text-[#38BDF8] uppercase tracking-wider">Crescimento</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white">R$ 119,90</span>
+                    <span className="text-xs text-slate-400">/mês</span>
+                  </div>
+                  <p className="text-xs text-slate-400">Para advogados com alta demanda de contencioso.</p>
+                  <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-white/10">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> 40 minutas por mês</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> 150 casos salvos</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> Módulo AtaJur completo</li>
+                  </ul>
+                </div>
+                <button
+                  onClick={() => window.location.href = "https://app.avjuris.com.br"}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs transition shadow-lg shadow-blue-600/30 cursor-pointer"
+                >
+                  Assinar Crescimento
+                </button>
+              </div>
+
+              <div className="bg-[#0D152A] p-8 rounded-3xl border border-white/10 flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Escala</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white">R$ 229,90</span>
+                    <span className="text-xs text-slate-400">/mês</span>
+                  </div>
+                  <p className="text-xs text-slate-400">Estrutura robusta para escritórios em expansão.</p>
+                  <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-white/10">
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> 150 minutas por mês</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> 300 casos salvos</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-blue-400" /> Multiusuários & Treinamento</li>
+                  </ul>
+                </div>
+                <button
+                  onClick={() => window.location.href = "https://app.avjuris.com.br"}
+                  className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs transition cursor-pointer"
+                >
+                  Assinar Escala
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="mt-auto py-12 px-6 lg:px-12 border-t border-white/10 bg-[#050914] text-slate-500 text-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Scale className="w-4 h-4 text-blue-500" />
+            <span className="font-bold text-slate-300">AvJuris.AI</span>
+            <span>© 2026 — Todos os direitos reservados.</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Criptografia AES-256</span>
+            <span className="flex items-center gap-1.5"><Lock className="w-4 h-4 text-blue-500" /> Sigilo Profissional Garantido</span>
+          </div>
+        </footer>
+
       </div>
     );
   }
 
+  // SE O USUÁRIO ESTIVER LOGADO, EXIBE A WORKSTATION JURÍDICA COMPLETA
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800">
       
