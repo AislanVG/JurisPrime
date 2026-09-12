@@ -346,7 +346,7 @@ export default function Home() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+          redirectTo: "https://app.avjuris.com.br/app",
         },
       });
       if (error) throw error;
@@ -383,6 +383,7 @@ export default function Home() {
     await supabase.auth.signOut();
     setUser(null);
     setHistoricoCasos([]);
+    window.location.href = "https://app.avjuris.com.br";
   };
 
   const handleStartRecording = async () => {
@@ -731,7 +732,7 @@ export default function Home() {
     );
   }
 
-  // SE NÃO ESTIVER LOGADO, EXIBE APENAS A TELA DE LOGIN / AUTENTICAÇÃO DA WORKSTATION
+  // SE NÃO ESTIVER LOGADO, EXIBE APENAS A TELA DE LOGIN / AUTENTICAÇÃO NA RAIZ (app.avjuris.com.br)
   if (!user) {
     return (
       <div className="min-h-screen bg-[#070D1E] relative flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
@@ -845,7 +846,7 @@ export default function Home() {
     );
   }
 
-  // SE O USUÁRIO ESTIVER LOGADO, EXIBE A WORKSTATION JURÍDICA COMPLETA
+  // SE O USUÁRIO ESTIVER LOGADO, EXIBE A WORKSTATION NA ROTA /app
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800">
       
@@ -1423,7 +1424,7 @@ export default function Home() {
                           onClick={() => setModoExibicao("formatado")}
                           className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer ${
                             modoExibicao === "formatado" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500"
-                          }`}
+                        }`}
                         >
                           Visualização Forense
                         </button>
@@ -1432,7 +1433,7 @@ export default function Home() {
                           onClick={() => setModoExibicao("editor")}
                           className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer ${
                             modoExibicao === "editor" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500"
-                          }`}
+                        }`}
                         >
                           Editar Markdown
                         </button>
@@ -2009,9 +2010,8 @@ export default function Home() {
                 Entendi, fechar
               </button>
             </div>
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
