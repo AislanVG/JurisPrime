@@ -346,7 +346,8 @@ export default function Home() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+          // >>> DIRECIONA O GOOGLE PARA A ROTA /APP APÓS A AUTENTICAÇÃO <<<
+          redirectTo: "https://app.avjuris.com.br/app",
         },
       });
       if (error) throw error;
@@ -354,8 +355,8 @@ export default function Home() {
       setAuthError(err.message || "Erro ao conectar com Google");
     }
   };
-
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  
+const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
     setAuthLoading(true);
@@ -365,7 +366,9 @@ export default function Home() {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setUser(data.user);
-        if (data.user) carregarDadosUsuario(data.user.id);
+        
+        // >>> ADICIONE ESTA LINHA PARA REDIRECIONAR PARA /APP APÓS O LOGIN <<<
+        window.location.href = "/app";
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
