@@ -4,6 +4,7 @@ import json
 import io
 import asyncio
 import base64
+import tempfile
 from datetime import date, timedelta
 from typing import List, Optional
 
@@ -67,6 +68,37 @@ class EmailCarrinhoAbandonadoRequest(BaseModel):
 # =====================================================================
 # 1. GESTÃO DE ASSINATURA: PLANO GRATUITO PADRÃO & CICLO
 # =====================================================================
+
+def registrar_incremento_documento(user_id: Optional[str]):
+    """Incrementa o contador de documentos usados no mês para o usuário."""
+    if not user_id or not supabase:
+        return
+    try:
+        res = supabase.table("assinaturas").select("documentos_usados_mes").eq("user_id", user_id).execute()
+        if res.data and len(res.data) > 0:
+            atual = res.data[0].get("documentos_usados_mes", 0)
+            supabase.table("assinaturas").update({"documentos_usados_mes": atual + 1}).eq("user_id", user_id).execute()
+    except Exception as e:
+        print(f"Erro ao registrar incremento de documento: {str(e)}")
+
+
+def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conteudo: str, instrucao: str, tribunal: str = "tjms"):
+    """Salva o documento gerado no histórico do Supabase."""
+    if not user_id or not supabase:
+        return
+    try:
+        payload = {
+            "user_id": user_id,
+            "titulo": titulo,
+            "tipo": tipo,
+            "conteudo_markdown": conteudo,
+            "instrucao_original": instrucao,
+            "tribunal": tribunal
+        }
+        supabase.table("documentos").insert(payload).execute()
+    except Exception as e:
+        print(f"Erro ao salvar documento no banco: {str(e)}")
+
 
 def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple[str, bytes]] = None):
     if not user_id or not supabase:
@@ -178,7 +210,6 @@ async def obter_status_usuario(user_id: str):
         nome_plano = plano.get("nome", "Gratuito")
         max_docs = plano.get("max_documentos_mes", 5)
 
-        # Força Gratuito se o registro apontar para básico sem assinatura paga confirmada
         if nome_plano.lower() in ("básico", "basico") and assinatura.get("plano_id") not in ("individual_1", "individual_2", "individual_3", "crescimento", "escala", "basico_pago"):
             nome_plano = "Gratuito"
             max_docs = 5
@@ -307,7 +338,7 @@ Sua missão é redigir uma PEÇA PROCESSUAL INTEGRAL (Petição Inicial, Agravo 
 
 SUPERPROMPT_ATA_REUNIAO = """
 Você é um Secretário Jurídico Executivo e Consultor em Gestão Legal de Alto Desempenho.
-Sua missão é processar a gravação de áudio da reunião e gerar uma ATA EXECUTIVA FORMAL completa, precisa e estruturada.
+Sua missão é processar o arquivo de áudio da reunião e gerar uma ATA EXECUTIVA FORMAL completa, precisa e estruturada.
 
 ESTRUTURA OBRIGATÓRIA DA ATA:
 1. CABEÇALHO EXECUTIVO: Data/Hora, Tipo de Reunião, Presentes e Pauta Principal.
@@ -331,7 +362,7 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
     else:
         doc = Document()
         for section in doc.sections:
-            section.top_margin = Inches(1.18)     # 3 cm
+            section.top_margin = Inches(1.18)   # 3 cm
             section.left_margin = Inches(1.18)    # 3 cm
             section.right_margin = Inches(0.78)   # 2 cm
             section.bottom_margin = Inches(0.78)  # 2 cm
@@ -352,7 +383,6 @@ def compilar_markdown_para_docx(conteudo_markdown: str, template_bytes: Optional
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.5
 
-        # Citação de Ementa / Jurisprudência (Recuo de 4 cm e fonte 10.5)
         if texto.startswith("> ") or texto.startswith("EMENTA:"):
             texto_limpo = texto.replace("> ", "").replace("*", "")
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -432,7 +462,6 @@ async def obter_status_usuario(user_id: str):
         nome_plano = plano.get("nome", "Gratuito")
         max_docs = plano.get("max_documentos_mes", 5)
         
-        # Garante fallback de Gratuito (5 docs) se não houver assinatura paga ativa
         if nome_plano.lower() in ("básico", "basico") and assinatura.get("plano_id") not in ("individual_1", "individual_2", "individual_3", "crescimento", "escala"):
             nome_plano = "Gratuito"
             max_docs = 5
@@ -488,14 +517,12 @@ async def gerar_peticao_stream(
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_contents = []
 
-    # Integração com DataJud/CNJ se houver numeração processual
     match_cnj = re.search(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", instrucao_usuario)
     if match_cnj:
         dados_cnj = consultar_datajud(match_cnj.group(0), tribunal=tribunal)
         if dados_cnj:
             user_contents.append(dados_cnj)
 
-    # Anexos em PDF
     for filename, conteudo in arquivos_lidos:
         if filename.lower().endswith(".pdf"):
             user_contents.append(types.Part.from_bytes(data=conteudo, mime_type="application/pdf"))
@@ -567,24 +594,25 @@ async def processar_audio_ata(
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    mime_type = audio.content_type or "audio/webm"
-    if audio.filename.endswith(".mp3"):
-        mime_type = "audio/mp3"
-    elif audio.filename.endswith(".wav"):
-        mime_type = "audio/wav"
-    elif audio.filename.endswith(".m4a"):
-        mime_type = "audio/m4a"
+    suffix = os.path.splitext(audio.filename)[1] or ".webm"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_audio:
+        temp_audio.write(audio_bytes)
+        temp_audio_path = temp_audio.name
 
-    prompt_contexto = f"""
-    DADOS DA REUNIÃO:
-    - Tipo: {tipo_reuniao}
-    - Participantes: {participantes}
-    - Pauta / Título: {titulo}
-    
-    Analise o áudio anexado e gere a Ata Executiva Formal completa.
-    """
-
+    audio_file = None
     try:
+        # Envia o arquivo usando o Files API do SDK do Gemini (Evita o Erro 500 em áudios)
+        audio_file = client.files.upload(file=temp_audio_path)
+
+        prompt_contexto = f"""
+        DADOS DA REUNIÃO:
+        - Tipo: {tipo_reuniao}
+        - Participantes: {participantes}
+        - Pauta / Título: {titulo}
+        
+        Analise o áudio anexado e gere a Ata Executiva Formal completa.
+        """
+
         config = types.GenerateContentConfig(
             system_instruction=SUPERPROMPT_ATA_REUNIAO,
             temperature=0.2,
@@ -593,15 +621,7 @@ async def processar_audio_ata(
         
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
-                        types.Part.from_text(text=prompt_contexto)
-                    ]
-                )
-            ],
+            contents=[audio_file, prompt_contexto],
             config=config
         )
 
@@ -621,7 +641,18 @@ async def processar_audio_ata(
             "ata_markdown": response.text
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao processar áudio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao processar áudio com IA: {str(e)}")
+    finally:
+        if os.path.exists(temp_audio_path):
+            try:
+                os.remove(temp_audio_path)
+            except Exception:
+                pass
+        if audio_file:
+            try:
+                client.files.delete(name=audio_file.name)
+            except Exception:
+                pass
 
 
 @app.post("/api/exportar-docx")
@@ -707,7 +738,7 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
             </div>
 
             <div style="text-align: center; margin: 28px 0 24px 0;">
-              <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
+              <a href="https://app.avjuris.com.br" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
                 Acessar a Workstation
               </a>
             </div>
@@ -799,7 +830,7 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
             </div>
             
             <div style="text-align: center; margin: 28px 0 24px 0;">
-              <a href="https://juris-prime-six.vercel.app" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
+              <a href="https://app.avjuris.com.br" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 13px; display: inline-block;">
                 Acessar a Workstation
               </a>
             </div>
@@ -865,7 +896,7 @@ async def enviar_email_recuperacao_checkout(payload: EmailCarrinhoAbandonadoRequ
           <p style="margin-top: 24px;">
             <strong>Mariana Ramos</strong><br>
             <span style="color: #64748b; font-size: 13px;">Relacionamento & Contas | AvJuris.AI</span><br>
-            <a href="https://juris-prime-six.vercel.app" style="color: #2563eb; text-decoration: none; font-size: 13px;">juris-prime-six.vercel.app</a>
+            <a href="https://app.avjuris.com.br" style="color: #2563eb; text-decoration: none; font-size: 13px;">app.avjuris.com.br</a>
           </p>
         </body>
         </html>
