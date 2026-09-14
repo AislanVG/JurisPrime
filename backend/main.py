@@ -600,6 +600,7 @@ async def processar_audio_ata(
 
     audio_file = None
     try:
+        # Método correto suportado pelo SDK google-genai para arquivos multimídia
         audio_file = client.files.upload(file=temp_audio_path)
 
         prompt_contexto = f"""
