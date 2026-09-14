@@ -49,7 +49,7 @@ if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
 
 
 # =====================================================================
-# PROMPTS FORENSES GLOBAIS (NÃO APAGUE ESTAS VARIÁVEIS)
+# PROMPTS FORENSES GLOBAIS
 # =====================================================================
 
 SUPERPROMPT_PETICAO_1GRAU = """
@@ -167,6 +167,7 @@ def registrar_incremento_documento(user_id: Optional[str]):
     except Exception as e:
         print(f"Erro ao registrar incremento de documento: {str(e)}")
 
+
 def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conteudo: str, instrucao: str, tribunal: str = "tjms"):
     if not user_id or not supabase:
         return
@@ -182,6 +183,7 @@ def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conte
         supabase.table("documentos").insert(payload).execute()
     except Exception as e:
         print(f"Erro ao salvar documento no banco: {str(e)}")
+
 
 def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple[str, bytes]] = None):
     if not user_id or not supabase:
@@ -452,7 +454,7 @@ async def gerar_peticao_stream(
             )
 
             response = client.models.generate_content_stream(
-                model="gemini-1.5-flash",
+                model="gemini-2.0-flash", # Atualizado para 2.0 Flash
                 contents=user_contents,
                 config=config
             )
@@ -531,7 +533,7 @@ async def processar_audio_ata(
         )
         
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash", # Atualizado para 2.0 Flash (Resolve erro 404)
             contents=[audio_file, prompt_contexto],
             config=config
         )
@@ -625,7 +627,7 @@ async def enviar_email_documento(payload: EmailDocumentoRequest):
         body = {
             "from": EMAIL_SENDER,
             "to": [payload.destinatario],
-            "subject": f"{payload.titulo} — AvJuris IA",
+            "subject": f"{payload.titulo} — AvJuris.AI",
             "html": html_email,
             "attachments": [{"filename": nome_arquivo, "content": arquivo_base64}]
         }
@@ -653,12 +655,12 @@ async def enviar_email_onboarding(payload: EmailBoasVindasRequest):
             "Content-Type": "application/json"
         }
 
-        html_content = f"""<p>Olá, {payload.nome}! Sua conta no AvJuris IA foi ativada com sucesso.</p>"""
+        html_content = f"""<p>Olá, {payload.nome}! Sua conta no AvJuris.AI foi ativada com sucesso.</p>"""
 
         body = {
             "from": EMAIL_SENDER,
             "to": [payload.destinatario],
-            "subject": "Bem-vindo(a) ao AvJuris IA",
+            "subject": "Bem-vindo(a) ao AvJuris.AI",
             "html": html_content
         }
 
@@ -681,12 +683,12 @@ async def enviar_email_recuperacao_checkout(payload: EmailCarrinhoAbandonadoRequ
             "Content-Type": "application/json"
         }
 
-        html_content = f"""<p>Olá, {payload.nome}! Percebemos que você iniciou a assinatura do Plano {payload.plano_nome} no AvJuris IA.</p>"""
+        html_content = f"""<p>Olá, {payload.nome}! Percebemos que você iniciou a assinatura do Plano {payload.plano_nome} no AvJuris.AI.</p>"""
 
         body = {
             "from": EMAIL_SENDER,
             "to": [payload.destinatario],
-            "subject": f"Dúvida sobre o Plano {payload.plano_nome}? — AvJuris IA",
+            "subject": f"Dúvida sobre o Plano {payload.plano_nome}? — AvJuris.AI",
             "html": html_content
         }
 
