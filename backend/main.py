@@ -167,7 +167,6 @@ def registrar_incremento_documento(user_id: Optional[str]):
     except Exception as e:
         print(f"Erro ao registrar incremento de documento: {str(e)}")
 
-
 def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conteudo: str, instrucao: str, tribunal: str = "tjms"):
     if not user_id or not supabase:
         return
@@ -183,7 +182,6 @@ def salvar_documento_banco(user_id: Optional[str], titulo: str, tipo: str, conte
         supabase.table("documentos").insert(payload).execute()
     except Exception as e:
         print(f"Erro ao salvar documento no banco: {str(e)}")
-
 
 def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple[str, bytes]] = None):
     if not user_id or not supabase:
@@ -454,7 +452,7 @@ async def gerar_peticao_stream(
             )
 
             response = client.models.generate_content_stream(
-                model="gemini-2.0-flash", # Atualizado para 2.0 Flash
+                model="gemini-3.6-flash", # Atualizado para a nova exigência da API
                 contents=user_contents,
                 config=config
             )
@@ -533,7 +531,7 @@ async def processar_audio_ata(
         )
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash", # Atualizado para 2.0 Flash (Resolve erro 404)
+            model="gemini-3.6-flash", # Atualizado para a nova exigência da API (Resolve erro 404)
             contents=[audio_file, prompt_contexto],
             config=config
         )
