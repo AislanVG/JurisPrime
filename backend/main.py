@@ -107,7 +107,6 @@ def verificar_e_consumir_cota(user_id: Optional[str], arquivos_bytes: List[tuple
     try:
         res = supabase.table("assinaturas").select("*, planos(*)").eq("user_id", user_id).execute()
         if not res.data or len(res.data) == 0:
-            # Novo usuário recebe plano gratuito com 5 minutas de teste
             novo_registro = {
                 "user_id": user_id,
                 "plano_id": "gratuito",
@@ -601,7 +600,6 @@ async def processar_audio_ata(
 
     audio_file = None
     try:
-        # Envia o arquivo usando o Files API do SDK do Gemini (Evita o Erro 500 em áudios)
         audio_file = client.files.upload(file=temp_audio_path)
 
         prompt_contexto = f"""
